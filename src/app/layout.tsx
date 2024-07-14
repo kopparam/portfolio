@@ -1,0 +1,39 @@
+import { type Metadata } from 'next'
+
+import { Providers } from '@/app/providers'
+import { Layout } from '@/components/Layout'
+
+import '@/styles/tailwind.css'
+
+export const metadata: Metadata = {
+  title: {
+    template: '%s - Kashyap Kopparam',
+    default:
+      'Kashyap Kopparam - Solution Architect, love everything tech',
+  },
+  description:
+    'I\'m Kashyap, a Solution Architect, with Prouct Owner, Engineering Manager and Software Engineering backgroud, based in Singapore. I\'m working with audax to supercharge bank\'s growth with plug-and-play digital solutions, fueling digital banking and embedded finance solutions.',
+  alternates: {
+    types: {
+      'application/rss+xml': `${process.env.NEXT_PUBLIC_SITE_URL}/feed.xml`,
+    },
+  },
+}
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <html lang="en" className="h-full antialiased" suppressHydrationWarning>
+      <body className="flex h-full bg-zinc-50 dark:bg-black">
+        <Providers>
+          <div className="flex w-full">
+            <Layout>{children}</Layout>
+          </div>
+        </Providers>
+      </body>
+    </html>
+  )
+}

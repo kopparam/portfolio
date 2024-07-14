@@ -1,0 +1,69 @@
+import { ArticleLayout } from '@/components/ArticleLayout'
+
+export const article = {
+  author: 'Kashyap Kopparam',
+  date: '2023-04-26',
+  title: 'Using WebClient with mTLS in Spring Boot',
+  description:
+    'Going through the documentation of WebClien, Spring Boot and openssl can be overwhelming. This article is a step-by-step guide to using WebClient with mTLS in Spring Boot using openssl to create a keystore in PKCS12 format.',
+}
+
+export const metadata = {
+  title: article.title,
+  description: article.description,
+}
+
+export default (props) => <ArticleLayout article={article} {...props} />
+
+Going through the documentation of WebClient, Spring Boot and openssl can be overwhelming. This article is a step-by-step guide to using WebClient with mTLS in Spring Boot.
+
+We will use openssl to create a keystore in PKCS12 format from certificate and key files in pem format, and use this to configure WebClient to use mTLS.
+
+## Setup
+
+Obtain the client certificate and key, this will usually be in pem format.
+
+Now we can convert this into a PKCS12 keystore. This keystore can hold multiple certificates and keys, identified by an alias/friedly name.
+The whole keystore is password protected, and each key entry may also be optionally password protected.
+
+```bash
+openssl pkcs12 -in client_cert.pem -inkey client_key.pem -export -out client.p12 -name my-client
+```
+
+## Configure WebClient
+
+```kotlin
+val keyStore = KeyStore.getInstance("PKCS12")
+
+// read a file as inputStream from path /etc/ssl/certs/client.p12
+File("/etc/ssl/certs/client.p12").inputStream().use { inputStream ->
+    keyStore.load(inputStream, "password".toCharArray())
+}
+
+// read the client certificate and key from the keystore using `my-client` alias
+val clientCrt: X509Certificate = keyStore.getCertificate("my-client") as X509Certificate
+val keyStoreEntry = keyStore.getEntry(
+    "my-client",
+    KeyStore.PasswordProtection("password".toCharArray())
+)
+val clientKey = (keyStoreEntry as KeyStore.PrivateKeyEntry).privateKey
+
+
+val httpClient: HttpClient =
+    HttpClient.create()
+        .wiretap("reactor.netty.http.client.HttpClient", LogLevel.DEBUG, AdvancedByteBufFormat.TEXTUAL)
+        .secure { builder ->
+            // Use this even though it is deprecated so that the TLS version can be negotiated and changed during runtime
+            builder.sslContext(
+                SslContextBuilder.forClient().clientAuth(ClientAuth.REQUIRE).keyManager(clientKey, clientCrt)
+            )
+        }
+val httpConnector: ClientHttpConnector = ReactorClientHttpConnector(httpClient)
+
+
+return WebClient.builder()
+    .clientConnector(httpConnector)
+    .baseUrl("https://mtls-secured-server.com")
+    .build()
+
+```
