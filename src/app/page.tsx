@@ -224,7 +224,7 @@ export default async function Home() {
           Solution Architect
           </h1>
           <p className="mt-6 text-base text-zinc-600 dark:text-zinc-400">
-          I’m Kashyap, a Solution Architect, with Prouct Owner, Engineering
+          I’m Kashyap, a Solution Architect, with Product Owner, Engineering
           Manager and Software Engineering backgroud, based in Singapore.
           I’m working with audax to supercharge bank’s growth with plug-and-play
           digital solutions, fueling digital banking and embedded finance solutions.

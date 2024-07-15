@@ -12,7 +12,7 @@ export const metadata: Metadata = {
       'Kashyap Kopparam - Solution Architect, love everything tech',
   },
   description:
-    'I\'m Kashyap, a Solution Architect, with Prouct Owner, Engineering Manager and Software Engineering backgroud, based in Singapore. I\'m working with audax to supercharge bank\'s growth with plug-and-play digital solutions, fueling digital banking and embedded finance solutions.',
+    'I\'m Kashyap, a Solution Architect, with Product Owner, Engineering Manager and Software Engineering backgroud, based in Singapore. I\'m working with audax to supercharge bank\'s growth with plug-and-play digital solutions, fueling digital banking and embedded finance solutions.',
   alternates: {
     types: {
       'application/rss+xml': `${process.env.NEXT_PUBLIC_SITE_URL}/feed.xml`,
