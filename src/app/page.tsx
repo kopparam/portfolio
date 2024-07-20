@@ -226,7 +226,7 @@ export default async function Home() {
           <p className="mt-6 text-base text-zinc-600 dark:text-zinc-400">
           I’m Kashyap, a Solution Architect, with Product Owner, Engineering
           Manager and Software Engineering background, based in Singapore.
-          I’m working with Audax to supercharge banks' growth with plug-and-play
+          I’m working with Audax to supercharge banks’ growth with plug-and-play
           digital solutions, fueling digital banking and embedded finance solutions.
           </p>
 
