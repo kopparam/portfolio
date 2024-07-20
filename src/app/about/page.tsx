@@ -71,35 +71,40 @@ export default function About() {
           </h1>
           <div className="mt-6 space-y-7 text-base text-zinc-600 dark:text-zinc-400">
             <p>
-              I’ve loved computers for as long as I can remember, the first 
-              computer I used was a DOS PC which I used to play games on. Once 
+              I’ve loved computers for as long as I can remember. The first 
+              encounter was a DOS PC which I used to play games on. Once 
               I learned how to code in high school, I was hooked. I’ve been coding 
-              ever since. What you see is acutally in a `p` tag :D. 
-            </p>
-            <p>
+              ever since. 
               The only thing I loved equally to computers as a kid were games and
-              sports. I played football, watched cricket, and played video games
-              most of the time. I have since grown up, and I still play video games,
-              appreciating the writing and development that’s gone into it is the
-              only difference.
+              sports. I spent a good chunk of my childhood playing football,
+              watching sports, and playing video games. I have since grown up, and 
+              developed appreciation for the writing and development
+              that goes into software, that has contributed to my curiosity and
+              passion for technology.
             </p>
             <p>
-              I studied Computer Science in college, and I’ve been working in the
-              tech industry ever since. I’ve worked as a software engineer, engineering
-              manager, tech lead, product owner and architect. I’ve worked in the retail,
-              tourism, and finance and banking industries.
+              I graduated with a Computer Science degree from my hometown, Bengaluru 
+              , India. Bengaluru being the Silicon Valley of India, I was lucky enough 
+              to land my first job at ThoughtWorks in my hometown and been working in
+              the Tech industry ever since. I learnt a lot working at ThoughWorks
+              and knew this was the right industry for me. I eventually moved to
+              Bangkok, Thailand to work with Agoda where I learnt even more and 
+              realized that I am a polyglot full stack developer. As the
+              opportunities came along, I moved to Singapore to work with GoTo Financial,
+              which is my longest tenure. I learnt so much about leadership, the FinTech 
+              industry, and how technology can be used to solve real problems. I now
+              work with Audax, which has me learning every day about banking technology.
+              Over the years, I’ve worked as a software engineer, engineering manager, tech lead, 
+              product owner and architect across various industries such as retail, 
+              tourism, finance and banking. 
             </p>
             <p>
-              I grew up in Bangalore, India, where there was a big growth in software comapnies.
-              Did my college and first job there. Then, I got an opportunity to work in Bangkok,
-              Thailand, with Agoda, which I did for under 2 years. I then moved to Singapore,
-              where I worked with GoTo Financial, formerly part of GoJek. I now work with audax.
-            </p>
-            <p>
-              Today, I design, direct and govern the architecture of digital product offerings
-              of audax. I work with engineers, product owners and the CTO to ensure the products
-              we build and deliver are scalable, secure and reliable. I also work with the sales
-              team to ensure the products we build are what the market needs.
+              Today, I design, direct, and govern the architecture of digital product 
+              offerings at Audax. I work with engineers, product owners and the CTO to 
+              ensure the products we build and deliver are scalable, secure and reliable.
+              I also work with the sales team to ensure the products we build meet what 
+              the market needs. I am passionate about the Tech space and strive to continue 
+              learning so I can help companies a build cutting-edge technology solutions. 
             </p>
           </div>
         </div>
