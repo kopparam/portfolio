@@ -56,11 +56,11 @@ export default function Uses() {
             hour or so greatly improves my overall strain and stiffness at the end
             of a long day.
           </Tool>
-          <Tool title="ZSA Voyeger Keyboard">
-            This is easily my favourite keyboard. To my surprise, the split layout
+          <Tool title="ZSA Voyager Keyboard">
+            This is easily my favorite keyboard. To my surprise, the split layout
             forced me to learn touch typing properly and I’m now faster and more
-            accurate. Pair this keyboard with a c-clamp mount, and you have infite
-            adjustability to the angle and distane for each half.
+            accurate. Pair this keyboard with a c-clamp mount, and you have infinite
+            adjustment to the angle and distance for each half.
           </Tool>
           <Tool title="Herman Miller Aeron Chair">
             I blindly bought it without trying, and I can happily say I’ve never sat
@@ -78,7 +78,7 @@ export default function Uses() {
           </Tool>
           <Tool title="Comic Code Font">
             A fully hand written font with care to re-hand write for italics and bold
-            is something I can really appretiate. So much easier on the eyes even at
+            is something I can really appreciate. So much easier on the eyes even at
             smaller sizes. I patched this with Nerd Fonts for the icons, and now use
             it for terminal and all IDEs.
           </Tool>
