@@ -1,0 +1,113 @@
+import { ArticleLayout } from '@/components/ArticleLayout'
+
+export const article = {
+  author: 'Kashyap Kopparam',
+  date: '2025-07-25',
+  title: 'How to replace a book disk in Proxmox',
+  description: 'Hot-swap a boot disk in Proxmox',
+}
+
+export const metadata = {
+  title: article.title,
+  description: article.description,
+}
+
+export default (props) => <ArticleLayout article={article} {...props} />
+
+A Proxmox VE node may be running 24 hours a day for years. This might lead to
+the boot disk wearing out and in need or replacement. This guide lets you swap
+the drive out for a new one all while keeping the available bar reboots.
+
+Note that this method works if you instlled Proxmox using ZFS.
+
+## Setup
+
+Get your new drive ready, and make sure it is the same size or larger than the
+old one. Plug in your drive into an empty bay in the Proxmox machine, or attach
+it with an enclosure using USB. The idea is to have both drives available to
+Proxmox.
+
+Let's assume
+
+Old drive: `/dev/sda` New drive: `/dev/sdb`
+
+## Step 1: Prepare partitions on the new drive
+
+The easy way to do this is to copy over the partitions using `sfdisk`
+
+```bash
+sfdisk -d /dev/sda > pve-boot-partitions.txt
+```
+
+```bash
+cat pve-boot-partitions.txt
+
+label: gpt
+label-id: FDB673E1-0941-43AB-BB02-B8A6C3D0D0F8
+device: /dev/sda
+unit: sectors
+first-lba: 34
+last-lba: 122142686
+sector-size: 512
+
+/dev/sad1 : start=          34, size=        2014, type=21686148-6449-6E6F-744E-656564454649, uuid=4CC31FA5-A6FC-42DB-9071-DF76FBA08F60
+/dev/sad2 : start=        2048, size=     1048576, type=C12A7328-F81F-11D2-BA4B-00A0C93EC93B, uuid=B0560706-84DB-45B1-AF0D-BB32DD7F4476
+/dev/sda3 : start=     1050624, size=   121085953, type=6A898CC3-1DD2-11B2-99A6-080020736631, uuid=D8BA81D1-0C84-49A8-99B6-F32C041A2FF3
+```
+
+This is also the input to `sfdisk`. By modifying the following in this file, it
+can be used to create partitions on the new drive.
+
+1. Remove last-blk line. This is tell `sfdisk` to use the entire disk.
+2. Remove UUIDs for all partition. This will let `sfdisk` generate new UUIDs for
+   the new drive.
+3. Replace size with `-` for the last partition. This will let `sfdisk` use the
+   remaining space on the disk for the last partition.
+
+It should look like this:
+
+```bash
+$ cat pve-boot-partitions.txt
+
+label: gpt
+label-id: FDB673E1-0941-43AB-BB02-B8A6C3D0D0F8
+device: /dev/sda
+unit: sectors
+first-lba: 34
+sector-size: 512
+
+/dev/sad1 : start=          34, size=        2014, type=21686148-6449-6E6F-744E-656564454649
+/dev/sad2 : start=        2048, size=     1048576, type=C12A7328-F81F-11D2-BA4B-00A0C93EC93B
+/dev/sda3 : start=     1050624, size=   -, type=6A898CC3-1DD2-11B2-99A6-080020736631
+```
+
+Use this file to create the partitions on the new drive:
+
+```bash
+sfdisk /dev/sdb < pve-boot-partitions.txt
+```
+
+Check that the partitions are created correctly:
+
+```bash
+lsblk /dev/sda /dev/sdb
+```
+
+Learn more about the partitions in Proxmox in the
+[Proxmox documentation](https://pve.proxmox.com/pve-docs/pve-admin-guide.html#sysboot_installer_part_scheme).
+
+## Step 2: Copy the partitions
+
+Now that the partitions are created, we can copy the data.
+
+First up is the BIOS boot partition.
+
+```bash
+dd if=/dev/sda1 of=/dev/sdb1
+```
+
+Next, the EFI system partition. 
+
+```bash
+
+

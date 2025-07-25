@@ -15,7 +15,9 @@ export const metadata = {
 
 export default (props) => <ArticleLayout article={article} {...props} />
 
-When doing code reviews, it is critical to think of the other side of the review. This article shows some tips on how that can be achieved with a simple guideline.
+When doing code reviews, it is critical to think of the other side of the
+review. This article shows some tips on how that can be achieved with a simple
+guideline.
 
 Typically, you are going to submit code and review code.
 
@@ -23,46 +25,62 @@ Typically, you are going to submit code and review code.
 
 ### Categorised comments
 
-Categorize the comments based on their importance. This will help the author to prioritize the comments and take action accordingly.
+Categorize the comments based on their importance. This will help the author to
+prioritize the comments and take action accordingly.
 
 #### Question
-A Question might not be actionable in terms of updating the code. 
 
-But it is important to get the author's attention, so that you as a reviewer and peers who might look at the pull request understand better.
+A Question might not be actionable in terms of updating the code.
+
+But it is important to get the author's attention, so that you as a reviewer and
+peers who might look at the pull request understand better.
 
 #### Suggestion
 
-A Suggestion also might not be actionable in terms of updating the code. 
-It could be something that is stylistic or something that is not a blocker for the pull request to be merged. 
+A Suggestion also might not be actionable in terms of updating the code. It
+could be something that is stylistic or something that is not a blocker for the
+pull request to be merged.
 
-However, it is important to overcommunicate why a suggesion is made, along with an example. Eg, this if condition could be more readable if it is extracted to a variable/function.
+However, it is important to overcommunicate why a suggesion is made, along with
+an example. Eg, this if condition could be more readable if it is extracted to a
+variable/function.
 
 #### Action required
 
-These comments require action before the pull request can be merged. It could be a bug, a security issue, 
-or a performance issue which might impact user experience or other key metrics of the application.
+These comments require action before the pull request can be merged. It could be
+a bug, a security issue, or a performance issue which might impact user
+experience or other key metrics of the application.
 
-Again, explaining how the issue might impact users or the application is important.
+Again, explaining how the issue might impact users or the application is
+important.
 
 #### Blocking approval
 
-These comments are blockers for the pull request to be merged.
-For example, then the pull request does not have tests, or the code written is a duplicate and the author can reuse an existing function/library to do the same.
+These comments are blockers for the pull request to be merged. For example, then
+the pull request does not have tests, or the code written is a duplicate and the
+author can reuse an existing function/library to do the same.
 
 Another case, is when the code becomes irrelevant due to changing requirements.
 
 #### Require offline communication
 
-This is a special case where the reviewer, the author, and maybe more team members need to have a discussion offline to come to a consensus. 
+This is a special case where the reviewer, the author, and maybe more team
+members need to have a discussion offline to come to a consensus.
 
-This could be a design decision, or a decision to refactor a large part of the codebase. In other cases, it could be a complex feature that needs to be broken down into smaller pieces or to discuss some missing pieces only discovered after writing the code.
+This could be a design decision, or a decision to refactor a large part of the
+codebase. In other cases, it could be a complex feature that needs to be broken
+down into smaller pieces or to discuss some missing pieces only discovered after
+writing the code.
 
 ### Ensure to approve or reject the pull request
 
-Do not leave the pull request hanging. As long as there is no blocking approval or require offline communication comment, the pull request should be approved. 
-We trust that the author to make the changes required, and reply to relevant comments before they merge the code.
+Do not leave the pull request hanging. As long as there is no blocking approval
+or require offline communication comment, the pull request should be approved.
+We trust that the author to make the changes required, and reply to relevant
+comments before they merge the code.
 
-If we fail to approve or reject the pull request, the author will be slowed down and in turn the team's performance is impacted.
+If we fail to approve or reject the pull request, the author will be slowed down
+and in turn the team's performance is impacted.
 
 ## As an author
 
