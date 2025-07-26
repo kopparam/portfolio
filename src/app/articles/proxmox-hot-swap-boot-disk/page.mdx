@@ -16,7 +16,7 @@ export default (props) => <ArticleLayout article={article} {...props} />
 
 A Proxmox VE node may be running 24 hours a day for years. This might lead to
 the boot disk wearing out and in need or replacement. This guide lets you swap
-the drive out for a new one all while keeping the available bar reboots.
+the drive out for a new one without data loss.
 
 Note that this method works if you instlled Proxmox using ZFS.
 
@@ -67,7 +67,7 @@ can be used to create partitions on the new drive.
 It should look like this:
 
 ```bash
-$ cat pve-boot-partitions.txt
+# cat pve-boot-partitions.txt
 
 label: gpt
 label-id: FDB673E1-0941-43AB-BB02-B8A6C3D0D0F8
@@ -84,13 +84,13 @@ sector-size: 512
 Use this file to create the partitions on the new drive:
 
 ```bash
-sfdisk /dev/sdb < pve-boot-partitions.txt
+# sfdisk /dev/sdb < pve-boot-partitions.txt
 ```
 
 Check that the partitions are created correctly:
 
 ```bash
-lsblk /dev/sda /dev/sdb
+# lsblk /dev/sda /dev/sdb
 ```
 
 Learn more about the partitions in Proxmox in the
@@ -103,11 +103,55 @@ Now that the partitions are created, we can copy the data.
 First up is the BIOS boot partition.
 
 ```bash
-dd if=/dev/sda1 of=/dev/sdb1
+# dd if=/dev/sda1 of=/dev/sdb1
 ```
 
-Next, the EFI system partition. 
+Next, the EFI system partition.
+
+Create the filesystem on the new drive, by simply copying over from the old
+drive
 
 ```bash
+# dd if=/dev/sda2 of=/dev/sdb2
+```
 
+Check if you are using EFI or Grub bootloader
 
+```bash
+# proxmox-boot-tool status
+```
+
+If you are using EFI, you can skip the grub at the end of the command.
+
+```bash
+proxmox-boot-tool init /dev/sdb2 [grub]
+```
+
+## Step 3: Create a mirrored ZFS pool
+
+The idea is to create a mirrored ZFS pool with the two drives and detach the old
+drive.
+
+```bash
+# zpool replace -f rpool /dev/sda3 /dev/sdb3
+```
+
+This will start the resilvering process, which will copy the data from the old
+drive to the new drive. You can check the status of the resilvering process
+with:
+
+```bash
+# zpool status rpool
+```
+
+Once the resilvering is complete, you can boot from the new drive.
+
+## Conculsion
+
+Always use ZFS during installation of Proxmox. By using ZFS, you can easily
+replace drives without data loss.
+
+## References
+
+- [Proxmox VE—ZFS on Linux](https://pve.proxmox.com/wiki/ZFS_on_Linux)
+- [ZFS—zpool replace](https://openzfs.github.io/openzfs-docs/man/master/8/zpool-replace.8.html)
