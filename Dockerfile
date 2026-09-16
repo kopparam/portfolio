@@ -4,12 +4,14 @@ FROM node:18-alpine AS base
 FROM base AS deps
 # Check https://github.com/nodejs/docker-node/tree/b4117f9333da4138b03a546ec926ef50a31506c3#nodealpine to understand why libc6-compat might be needed.
 RUN apk add --no-cache libc6-compat
+# corepack does not manage bun, so take the binary from the official image
+COPY --from=oven/bun:1-alpine /usr/local/bin/bun /usr/local/bin/bun
 WORKDIR /app
 
 # Install dependencies based on the preferred package manager
 COPY package.json bun.lockb* yarn.lock* package-lock.json* pnpm-lock.yaml* ./
 RUN \
-  if [ -f bun.lockb ]; then corepack enable bun && bun install --frozen-lockfile; \
+  if [ -f bun.lockb ]; then bun install --frozen-lockfile; \
   elif [ -f yarn.lock ]; then yarn --frozen-lockfile; \
   elif [ -f package-lock.json ]; then npm ci; \
   elif [ -f pnpm-lock.yaml ]; then corepack enable pnpm && pnpm i --frozen-lockfile; \
@@ -19,6 +21,7 @@ RUN \
 
 # Rebuild the source code only when needed
 FROM base AS builder
+COPY --from=oven/bun:1-alpine /usr/local/bin/bun /usr/local/bin/bun
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
@@ -29,7 +32,7 @@ COPY . .
 ENV NEXT_TELEMETRY_DISABLED 1
 
 RUN \
-  if [ -f bun.lockb ]; then corepack enable bun && bun run build; \
+  if [ -f bun.lockb ]; then bun run build; \
   elif [ -f yarn.lock ]; then yarn run build; \
   elif [ -f package-lock.json ]; then npm run build; \
   elif [ -f pnpm-lock.yaml ]; then corepack enable pnpm && pnpm run build; \
