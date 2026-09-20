@@ -68,18 +68,33 @@ jobs:
           docker push "${{ steps.image.outputs.repo }}:latest"
           docker push "${{ steps.image.outputs.repo }}:${{ steps.image.outputs.tag }}"
 
-      # PullStack fetches the new :latest, DeployStack runs compose up so the
-      # container is recreated from it. Deploy alone would keep the old image.
+      # The stack has auto_pull set, so DeployStack pulls the :latest just
+      # pushed and then runs compose up. Calling PullStack separately would
+      # race it: execute requests return as soon as the work is queued.
       - name: Deploy the mywebsite stack
         run: |
-          for request in PullStack DeployStack; do
-            echo "komodo: $request"
-            curl -sS --fail-with-body -m 300 -X POST "${{ vars.KOMODO_URL }}/execute/$request" \
-              -H 'content-type: application/json' \
-              -H "x-api-key: ${{ secrets.KOMODO_API_KEY }}" \
-              -H "x-api-secret: ${{ secrets.KOMODO_API_SECRET }}" \
-              -d '{"stack":"mywebsite"}' > /dev/null
+          curl -sS --fail-with-body -m 300 -X POST "${{ vars.KOMODO_URL }}/execute/DeployStack" \
+            -H 'content-type: application/json' \
+            -H "x-api-key: ${{ secrets.KOMODO_API_KEY }}" \
+            -H "x-api-secret: ${{ secrets.KOMODO_API_SECRET }}" \
+            -d '{"stack":"mywebsite"}'
+          echo
+
+      # DeployStack returns an Update, not a result, so a 2xx only means the
+      # deploy was accepted. Watch the container until it runs what was built.
+      - name: Wait for the stack to run the new image
+        run: |
+          target=$(docker image inspect -f '{{.Id}}' "${{ steps.image.outputs.repo }}:${{ steps.image.outputs.tag }}")
+          for _ in $(seq 1 60); do
+            running=$(docker inspect -f '{{.Image}}' mywebsite 2>/dev/null || true)
+            if [ "$running" = "$target" ]; then
+              echo "mywebsite is running $target"
+              exit 0
+            fi
+            sleep 5
           done
+          echo "timed out: mywebsite is running ${running:-nothing}, expected $target" >&2
+          exit 1
 
       - name: Log out of the registry
         if: always()
