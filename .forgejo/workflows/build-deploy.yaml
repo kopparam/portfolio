@@ -1,0 +1,75 @@
+name: Build and deploy
+
+# Builds the image on docker-pi's runner (natively arm64, which is what
+# docker-pi runs), pushes it to the Forgejo registry, and asks Komodo to
+# redeploy the mywebsite stack with the new image.
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: docker
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      # The job container has node (for the JS actions) but no docker client.
+      # The daemon itself is the host's, mounted in by the runner.
+      - name: Install the Docker CLI
+        run: |
+          install -m 0755 -d /etc/apt/keyrings
+          curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
+          chmod a+r /etc/apt/keyrings/docker.asc
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian $(. /etc/os-release && echo "$VERSION_CODENAME") stable" \
+            > /etc/apt/sources.list.d/docker.list
+          apt-get update
+          apt-get install -y --no-install-recommends docker-ce-cli
+
+      # Derived from the instance this workflow runs on, so the registry
+      # hostname is not hard-coded here.
+      - name: Work out the image name
+        id: image
+        run: |
+          registry="${GITHUB_SERVER_URL#https://}"
+          registry="${registry%/}"
+          echo "registry=${registry}" >> "$GITHUB_OUTPUT"
+          echo "repo=${registry}/${GITHUB_REPOSITORY}" >> "$GITHUB_OUTPUT"
+          echo "tag=${GITHUB_SHA:0:7}" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to the Forgejo registry
+        run: |
+          echo "${{ secrets.REGISTRY_TOKEN }}" \
+            | docker login "${{ steps.image.outputs.registry }}" -u "${{ github.actor }}" --password-stdin
+
+      - name: Build
+        run: |
+          docker build \
+            --tag "${{ steps.image.outputs.repo }}:latest" \
+            --tag "${{ steps.image.outputs.repo }}:${{ steps.image.outputs.tag }}" \
+            .
+
+      # :latest is what the stack runs; the sha tag is there to roll back to.
+      - name: Push
+        run: |
+          docker push "${{ steps.image.outputs.repo }}:latest"
+          docker push "${{ steps.image.outputs.repo }}:${{ steps.image.outputs.tag }}"
+
+      # PullStack fetches the new :latest, DeployStack runs compose up so the
+      # container is recreated from it. Deploy alone would keep the old image.
+      - name: Deploy the mywebsite stack
+        run: |
+          for request in PullStack DeployStack; do
+            echo "komodo: $request"
+            curl -sS --fail-with-body -m 300 -X POST "${{ vars.KOMODO_URL }}/execute/$request" \
+              -H 'content-type: application/json' \
+              -H "x-api-key: ${{ secrets.KOMODO_API_KEY }}" \
+              -H "x-api-secret: ${{ secrets.KOMODO_API_SECRET }}" \
+              -d '{"stack":"mywebsite"}' > /dev/null
+          done
+
+      - name: Log out of the registry
+        if: always()
+        run: docker logout "${{ steps.image.outputs.registry }}" || true
