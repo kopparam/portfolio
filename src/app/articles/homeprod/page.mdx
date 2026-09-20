@@ -15,9 +15,9 @@ export const metadata = {
 
 export default (props) => <ArticleLayout article={article} {...props} />
 
-A homelab is where you try things. You spin up a Kubernetes cluster on
-Raspberry Pis, put Ceph on a thumb drive, and learn a lot. Nobody minds when it
-breaks, because nobody was using it.
+A homelab is where you try things. You spin up a Kubernetes cluster on Raspberry
+Pis, put Ceph on a thumb drive, and learn a lot. Nobody minds when it breaks,
+because nobody was using it.
 
 Mine stopped being that. Photos, documents, the family tree, the budget, the
 camera feeds, the music, this website — all of it lives at home now, and other
@@ -42,7 +42,7 @@ without remembering anything.
  │                                 │    │                              │
  │  Traefik ── mywebsite           │    │  pve   — mini PC, ZFS raidz1 │
  │         └── homepage            │    │          immich, jellyfin,   │
- │  ddclient (Cloudflare, Namecheap)│   │          frigate, paperless, │
+ │  ddclient (CF + Namecheap)      │    │          frigate, paperless, │
  │  atvloadly                      │    │          step-ca, fileserver │
  │                                 │    │                              │
  │  Komodo Periphery ──────────────┼────┼─▶ Komodo Core (LXC)          │
@@ -55,17 +55,17 @@ without remembering anything.
 
 Two Proxmox nodes in one cluster, a Raspberry Pi 5 that does all the Docker
 work, a Pi 5 for Home Assistant OS, an ancient Pi 2B running Pi-hole, and a
-separate physical box for Proxmox Backup Server. The backup server is deliberately
-not part of the cluster — a backup that shares a failure domain with the thing it
-backs up is not a backup.
+separate physical box for Proxmox Backup Server. The backup server is
+deliberately not part of the cluster — a backup that shares a failure domain
+with the thing it backs up is not a backup.
 
 ## Stateful things get an LXC, stateless things get a container
 
 The split I settled on is boring and has held up well.
 
-Anything with a large data directory — Immich, Jellyfin, Frigate, Paperless,
-the file server, Syncthing, the private CA — runs as its own LXC on the Proxmox
-node with the ZFS pool. Those containers are pets. They get snapshots, they get
+Anything with a large data directory — Immich, Jellyfin, Frigate, Paperless, the
+file server, Syncthing, the private CA — runs as its own LXC on the Proxmox node
+with the ZFS pool. Those containers are pets. They get snapshots, they get
 backed up by the cluster backup job, and I do not move them around.
 
 Anything that is just a process in front of some config — the reverse proxy,
@@ -86,7 +86,7 @@ fiction.
 
 I replaced it with [Komodo](https://komo.do). The topology is a Core and
 Peripheries: Core runs as a Docker LXC on the Proxmox node, each Docker host
-runs a small Periphery agent that connects *outbound* to Core over the LAN. The
+runs a small Periphery agent that connects _outbound_ to Core over the LAN. The
 agent dials out, so the host needs no inbound ports and no credentials stored on
 Core's side.
 
@@ -132,11 +132,11 @@ Traefik v3 terminates everything. The router forwards 80 and 443 to the Pi, port
 The certificate setup is the part that took the longest to get right, because
 three different kinds of name need three different challenges:
 
-| Resolver | Challenge | Used for |
-| --- | --- | --- |
-| `namecheapresolver` | HTTP-01 | the public domain this site runs on |
-| `kopparamdnsresolver` | DNS-01 via Cloudflare | internal names that never face the internet |
-| `step` | ACME against my own step-ca | LAN-only names, on a private CA |
+| Resolver              | Challenge                   | Used for                                    |
+| --------------------- | --------------------------- | ------------------------------------------- |
+| `namecheapresolver`   | HTTP-01                     | the public domain this site runs on         |
+| `kopparamdnsresolver` | DNS-01 via Cloudflare       | internal names that never face the internet |
+| `step`                | ACME against my own step-ca | LAN-only names, on a private CA             |
 
 DNS-01 is what makes the middle row possible: I get a real Let's Encrypt
 certificate for a hostname that resolves only inside the house, because the
@@ -160,12 +160,12 @@ behind the reverse proxy and inventing an auth story for it, the LXC runs:
 tailscale serve --bg 9120
 ```
 
-That publishes the UI at an HTTPS URL with a valid tailnet certificate, reachable
-only by my devices. No port forward, no proxy rule, no extra login. Tailscale SSH
-covers shell access the same way, which means the Pi has password authentication
-disabled entirely and I do not manage `authorized_keys` by hand — with one LAN
-fallback key, because I have locked myself out of a machine by trusting an
-overlay network before.
+That publishes the UI at an HTTPS URL with a valid tailnet certificate,
+reachable only by my devices. No port forward, no proxy rule, no extra login.
+Tailscale SSH covers shell access the same way, which means the Pi has password
+authentication disabled entirely and I do not manage `authorized_keys` by hand —
+with one LAN fallback key, because I have locked myself out of a machine by
+trusting an overlay network before.
 
 Pi-hole is LAN DNS, so the internal names resolve in the house and the ad
 blocking is free.
@@ -184,7 +184,8 @@ host is ready to be handed stacks.
 Two things in it exist only because the rebuild taught me they were needed:
 
 ```yaml
-- name: Periphery waits for the network (it does not retry a failed first connect)
+- name:
+    Periphery waits for the network (it does not retry a failed first connect)
   ansible.builtin.copy:
     dest: /etc/systemd/system/periphery.service.d/10-network-online.conf
     content: |
