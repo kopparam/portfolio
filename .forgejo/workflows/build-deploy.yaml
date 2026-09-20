@@ -45,7 +45,14 @@ jobs:
       - name: Log in to the Forgejo registry
         run: |
           token="${{ secrets.REGISTRY_TOKEN }}"
-          echo "${token:-$GITHUB_TOKEN}" \
+          if [ -n "$token" ]; then
+            echo "authenticating as ${{ github.actor }} with REGISTRY_TOKEN"
+          else
+            echo "authenticating as ${{ github.actor }} with the automatic token;"
+            echo "a 401 on blob upload below means it lacks write:package"
+            token="$GITHUB_TOKEN"
+          fi
+          echo "$token" \
             | docker login "${{ steps.image.outputs.registry }}" -u "${{ github.actor }}" --password-stdin
 
       - name: Build
