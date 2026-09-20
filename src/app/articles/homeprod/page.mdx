@@ -1,0 +1,247 @@
+import { ArticleLayout } from '@/components/ArticleLayout'
+
+export const article = {
+  author: 'Kashyap Kopparam',
+  date: '2026-09-20',
+  title: 'Homeprod: when the homelab becomes production',
+  description:
+    'My home setup stopped being a lab the day the family started depending on it. This is how it is built today — Proxmox for stateful services, a Raspberry Pi running git-defined Docker stacks, Traefik at the edge, Tailscale for everything private, and a backup I actually restored from.',
+}
+
+export const metadata = {
+  title: article.title,
+  description: article.description,
+}
+
+export default (props) => <ArticleLayout article={article} {...props} />
+
+A homelab is where you try things. You spin up a Kubernetes cluster on
+Raspberry Pis, put Ceph on a thumb drive, and learn a lot. Nobody minds when it
+breaks, because nobody was using it.
+
+Mine stopped being that. Photos, documents, the family tree, the budget, the
+camera feeds, the music, this website — all of it lives at home now, and other
+people in the house notice when it is down. That changes the rules. Uptime
+matters, restores have to work, and "I clicked something in a UI six months ago"
+is no longer an acceptable description of how a service is configured.
+
+So I started calling it homeprod, and I rebuilt it around one requirement: if a
+machine dies, I should be able to bring it back from a git repo and a backup,
+without remembering anything.
+
+## The shape of it
+
+```text
+                    Internet                        Tailnet
+                       │                               │
+                  80 / 443                       (admin UIs, SSH)
+                       │                               │
+                       ▼                               ▼
+ ┌─────────────────────────────────┐    ┌──────────────────────────────┐
+ │ docker-pi — Raspberry Pi 5      │    │ Proxmox cluster              │
+ │                                 │    │                              │
+ │  Traefik ── mywebsite           │    │  pve   — mini PC, ZFS raidz1 │
+ │         └── homepage            │    │          immich, jellyfin,   │
+ │  ddclient (Cloudflare, Namecheap)│   │          frigate, paperless, │
+ │  atvloadly                      │    │          step-ca, fileserver │
+ │                                 │    │                              │
+ │  Komodo Periphery ──────────────┼────┼─▶ Komodo Core (LXC)          │
+ │  Grafana Alloy                  │    │  pve2  — Forgejo, Navidrome  │
+ └─────────────────────────────────┘    └──────────────────────────────┘
+                                                      │
+        Home Assistant OS (Pi 5)                      ▼
+        Pi-hole (Pi 2B, LAN DNS)          Proxmox Backup Server (own box)
+```
+
+Two Proxmox nodes in one cluster, a Raspberry Pi 5 that does all the Docker
+work, a Pi 5 for Home Assistant OS, an ancient Pi 2B running Pi-hole, and a
+separate physical box for Proxmox Backup Server. The backup server is deliberately
+not part of the cluster — a backup that shares a failure domain with the thing it
+backs up is not a backup.
+
+## Stateful things get an LXC, stateless things get a container
+
+The split I settled on is boring and has held up well.
+
+Anything with a large data directory — Immich, Jellyfin, Frigate, Paperless,
+the file server, Syncthing, the private CA — runs as its own LXC on the Proxmox
+node with the ZFS pool. Those containers are pets. They get snapshots, they get
+backed up by the cluster backup job, and I do not move them around.
+
+Anything that is just a process in front of some config — the reverse proxy,
+this website, the dashboard, the dynamic DNS clients — runs as a Docker stack on
+a single Raspberry Pi 5. Those are cattle. Their entire definition is a compose
+file in git, so the Pi itself holds nothing I would miss.
+
+That second half is the part worth writing about, because it is where I made the
+biggest change this year.
+
+## Git is the control plane
+
+Docker on that Pi used to be managed through Portainer. It worked, but a good
+chunk of the setup existed only inside Portainer's database: stacks pasted into
+a textarea, environment variables typed into a form, edits made at 11pm and
+never written down. The compose files in my repo had quietly drifted into
+fiction.
+
+I replaced it with [Komodo](https://komo.do). The topology is a Core and
+Peripheries: Core runs as a Docker LXC on the Proxmox node, each Docker host
+runs a small Periphery agent that connects *outbound* to Core over the LAN. The
+agent dials out, so the host needs no inbound ports and no credentials stored on
+Core's side.
+
+What makes it stick is that the stacks are declared in the repo, not in the UI:
+
+```toml
+[[stack]]
+name = "traefik"
+[stack.config]
+server = "docker-pi"
+project_name = "traefik"
+git_provider = "forgejo.internal"
+repo = "k/homelab"
+branch = "main"
+run_directory = "stacks/traefik"
+file_paths = ["compose.yaml"]
+environment = """
+ACME_EMAIL=[[ACME_EMAIL]]
+CF_API_EMAIL=[[CF_API_EMAIL]]
+CF_DNS_API_TOKEN=[[CF_DNS_API_TOKEN]]
+"""
+```
+
+One `resources.toml` lists every stack, which host it belongs to, and where its
+compose file lives. Komodo reads it as a resource sync, so adding a service is a
+pull request, not a session with a UI. Secrets never enter the repo: `[[VAR]]`
+references a variable held by Komodo, which it expands into the stack's `.env`
+at deploy time.
+
+The loop closes with a webhook. I push to my self-hosted Forgejo, Forgejo posts
+to Komodo Core, Core tells the Periphery on the Pi to pull and redeploy that one
+stack. Editing a compose file and pushing it is the deploy.
+
+One snag worth knowing if you self-host Forgejo: its `ALLOWED_HOST_LIST` for
+webhooks defaults to `external`, which silently blocks private addresses. Every
+delivery to a LAN-hosted Komodo fails until you add the host.
+
+## The edge
+
+Traefik v3 terminates everything. The router forwards 80 and 443 to the Pi, port
+80 redirects to 443, and services opt in with labels rather than config files.
+
+The certificate setup is the part that took the longest to get right, because
+three different kinds of name need three different challenges:
+
+| Resolver | Challenge | Used for |
+| --- | --- | --- |
+| `namecheapresolver` | HTTP-01 | the public domain this site runs on |
+| `kopparamdnsresolver` | DNS-01 via Cloudflare | internal names that never face the internet |
+| `step` | ACME against my own step-ca | LAN-only names, on a private CA |
+
+DNS-01 is what makes the middle row possible: I get a real Let's Encrypt
+certificate for a hostname that resolves only inside the house, because the
+challenge is answered in DNS and never needs an inbound connection. The third
+row is a private CA running as its own LXC, issuing certificates over ACME just
+like Let's Encrypt does — the same Traefik config, a different directory URL.
+
+Two `ddclient` containers keep the A records pointed at my residential IP, one
+per registrar, because my domains are split across Cloudflare and Namecheap.
+
+## Nothing administrative is on the internet
+
+The only things exposed publicly are the two websites Traefik serves. Every
+admin interface — Komodo, Proxmox, Forgejo, the dashboards — is reachable only
+over [Tailscale](https://tailscale.com).
+
+The trick I like most here is `tailscale serve`. Rather than putting Komodo's UI
+behind the reverse proxy and inventing an auth story for it, the LXC runs:
+
+```bash
+tailscale serve --bg 9120
+```
+
+That publishes the UI at an HTTPS URL with a valid tailnet certificate, reachable
+only by my devices. No port forward, no proxy rule, no extra login. Tailscale SSH
+covers shell access the same way, which means the Pi has password authentication
+disabled entirely and I do not manage `authorized_keys` by hand — with one LAN
+fallback key, because I have locked myself out of a machine by trusting an
+overlay network before.
+
+Pi-hole is LAN DNS, so the internal names resolve in the house and the ad
+blocking is free.
+
+## Rebuilding a host is a playbook
+
+Earlier this month I reinstalled the Docker Pi from scratch — new OS release,
+new hostname, same hardware. The point of the exercise was to find out whether
+the rest of this was true.
+
+Host setup is one Ansible playbook: static IP, SSH hardening, Docker from the
+upstream repo, the shared Docker network, Grafana Alloy for logs and metrics,
+and the Komodo Periphery agent. Run it against a freshly flashed card and the
+host is ready to be handed stacks.
+
+Two things in it exist only because the rebuild taught me they were needed:
+
+```yaml
+- name: Periphery waits for the network (it does not retry a failed first connect)
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/periphery.service.d/10-network-online.conf
+    content: |
+      [Unit]
+      Wants=network-online.target
+      After=network-online.target
+
+- name: Periphery starts on boot (installer does not enable it)
+  ansible.builtin.systemd_service:
+    name: periphery
+    state: started
+    enabled: true
+```
+
+The agent does not retry its first connection, so on a cold boot it raced the
+network and lost, and the installer never enabled the unit. Both are the kind of
+detail you discover once and then encode, which is the whole argument for the
+playbook.
+
+## The backup is the part you test
+
+Before wiping the Pi I took a Proxmox Backup Server snapshot of the whole host
+and marked it protected so no retention job could eat it.
+
+Then I did the thing that matters: mounted the snapshot and compared checksums
+of the files I actually cared about — the Docker volumes, the Traefik
+`acme.json`, the config directories — against the live host. A backup job that
+exits 0 tells you a job ran. Reading the bytes back and finding them identical
+tells you that you have a backup.
+
+They matched, and the restore afterwards was uneventful. Certificates came back
+without being reissued, and the Apple TV pairing in an anonymous volume survived
+because I had gone looking for it beforehand.
+
+## What I would tell past me
+
+**State that lives in a UI does not exist.** The single biggest improvement was
+moving stack definitions out of a management tool's database and into a git repo
+that the management tool reads. The tool became replaceable, which is exactly
+what you want from a tool.
+
+**Write the migration down before running it.** My reinstall was a document with
+numbered phases, a check per service, and a rollback per step. It turned a scary
+evening into a checklist, and when something did go wrong I knew which step I
+was on.
+
+**Keep an explicit list of what is not in code.** The router's port forwards,
+DHCP reservations, the CA's provisioner, the Home Assistant configuration, the
+Komodo variables, the DNS records at two registrars. None of it is in the repo,
+so the repo documents where each one lives. That list is the real disaster
+recovery plan.
+
+**Delete the experiments.** My repo had Kubernetes manifests for a cluster that
+no longer exists, Ceph notes for a thumb drive I pulled out a year ago, and
+compose files for four services I stopped running. Every one of them was a trap
+for future me, reading a file and assuming it described reality. Homeprod means
+the repo contains what runs, and nothing else — the experiments live in a tag if
+I ever want them back.
+
+The lab was more fun. This is better.
