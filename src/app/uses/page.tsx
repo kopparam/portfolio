@@ -1,18 +1,8 @@
-import { Card } from '@/components/Card'
 import { Section } from '@/components/Section'
 import { SimpleLayout } from '@/components/SimpleLayout'
 
-function ToolsSection({
-  children,
-  ...props
-}: React.ComponentPropsWithoutRef<typeof Section>) {
-  return (
-    <Section {...props}>
-      <ul role="list" className="space-y-16">
-        {children}
-      </ul>
-    </Section>
-  )
+function ToolsSection(props: React.ComponentPropsWithoutRef<typeof Section>) {
+  return <Section {...props} />
 }
 
 function Tool({
@@ -25,12 +15,12 @@ function Tool({
   children: React.ReactNode
 }) {
   return (
-    <Card as="li">
-      <Card.Title as="h3" href={href}>
-        {title}
-      </Card.Title>
-      <Card.Description>{children}</Card.Description>
-    </Card>
+    <div className="kl-item">
+      <h3 className="kl-item__title">
+        {href ? <a href={href}>{title}</a> : title}
+      </h3>
+      <p className="kl-item__text">{children}</p>
+    </div>
   )
 }
 
@@ -45,7 +35,7 @@ export default function Uses() {
       title="Software I use, gadgets I love, and other things I recommend."
       intro="A list of things I use to interface with the world."
     >
-      <div className="space-y-20">
+      <div className="flex flex-col gap-16">
         <ToolsSection title="Workstation">
           <Tool title="15” Lenovo Legion 5 (2020)">
             I use a gaming laptop as my daily driver because I like the

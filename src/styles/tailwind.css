@@ -1,4 +1,6 @@
 @import 'tailwindcss/base';
+@import '../design-system/dist/fonts.css';
+@import '../design-system/dist/tokens.css';
+@import '../design-system/project/components/bundle.css';
 @import 'tailwindcss/components';
-@import './prism.css';
 @import 'tailwindcss/utilities';

@@ -1,0 +1,34 @@
+{
+  "tokens": {
+    "#0c2350": "ink",
+    "#455679": "ink-muted",
+    "#c8d3e8": "line",
+    "#e6ecf6": "surface-sunken",
+    "#f3f6fb": "ground",
+    "#086a9e": "accent",
+    "#ffffff": "surface",
+    "#e0f0f8": "accent-tint",
+    "#a8e4ff": "tape"
+  },
+  "light": {
+    "ground": "#f3f6fb",
+    "surface": "#ffffff",
+    "surface-sunken": "#e6ecf6",
+    "ink": "#0c2350",
+    "ink-muted": "#455679",
+    "line": "#c8d3e8",
+    "line-strong": "#7584a2",
+    "accent": "#086a9e",
+    "accent-ink": "#086a9e",
+    "accent-tint": "#e0f0f8",
+    "focus": "#086a9e",
+    "tape": "#a8e4ff",
+    "on-tape": "#0c2350"
+  },
+  "strokes": {
+    "stroke-hair": "1px",
+    "stroke-symbol": "1.5px",
+    "stroke-line": "2px",
+    "stroke-frame": "3px"
+  }
+}

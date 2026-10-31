@@ -3,6 +3,7 @@ import { ArticleLayout } from '@/components/ArticleLayout'
 export const article = {
   author: 'Kashyap Kopparam',
   date: '2026-09-20',
+  docNo: 'KL-0004',
   title: 'Homeprod: when the homelab becomes production',
   description:
     'My home setup stopped being a lab the day the family started depending on it. This is how it is built today — Proxmox for stateful services, a Raspberry Pi running git-defined Docker stacks, Traefik at the edge, Tailscale for everything private, and a backup I actually restored from.',
@@ -31,26 +32,55 @@ without remembering anything.
 
 ## The shape of it
 
-```text
-                    Internet                        Tailnet
-                       │                               │
-                  80 / 443                       (admin UIs, SSH)
-                       │                               │
-                       ▼                               ▼
- ┌─────────────────────────────────┐    ┌──────────────────────────────┐
- │ docker-pi — Raspberry Pi 5      │    │ Proxmox cluster              │
- │                                 │    │                              │
- │  Traefik ── mywebsite           │    │  pve   — mini PC, ZFS raidz1 │
- │         └── homepage            │    │          immich, jellyfin,   │
- │  ddclient (CF + Namecheap)      │    │          frigate, paperless, │
- │  atvloadly                      │    │          step-ca, fileserver │
- │                                 │    │                              │
- │  Komodo Periphery ──────────────┼────┼─▶ Komodo Core (LXC)          │
- │  Grafana Alloy                  │    │  pve2  — Forgejo, Navidrome  │
- └─────────────────────────────────┘    └──────────────────────────────┘
-                                                      │
-        Home Assistant OS (Pi 5)                      ▼
-        Pi-hole (Pi 2B, LAN DNS)          Proxmox Backup Server (own box)
+```d2
+# title: How homeprod is put together
+# description: Internet traffic on ports 80 and 443 reaches Traefik on docker-pi, a Raspberry Pi 5, which serves mywebsite and homepage. Admin access comes over the tailnet to a two-node Proxmox cluster running media, photo, document and Git services. Komodo Periphery on docker-pi reports to Komodo Core on the cluster, and the cluster backs up to a separate Proxmox Backup Server.
+
+direction: down
+
+internet: Internet {class: zone}
+tailnet: Tailnet {class: zone}
+
+docker-pi: docker-pi · Raspberry Pi 5 {
+  class: host
+  traefik: Traefik
+  mywebsite
+  homepage
+  ddclient: ddclient (CF + Namecheap)
+  atvloadly
+  periphery: Komodo Periphery
+  alloy: Grafana Alloy
+
+  traefik -> mywebsite
+  traefik -> homepage
+}
+
+proxmox: Proxmox cluster {
+  class: host
+  pve: pve · mini PC, ZFS raidz1 {
+    class: node
+    services: "immich, jellyfin, frigate\npaperless, step-ca, fileserver" {class: list}
+  }
+  pve2: pve2 {
+    class: node
+    services: Forgejo, Navidrome {class: list}
+  }
+  core: Komodo Core (LXC)
+}
+
+pbs: Proxmox Backup Server (own box)
+
+lan: Also on the LAN {
+  class: group
+  near: bottom-center
+  ha: Home Assistant OS (Pi 5)
+  pihole: Pi-hole (Pi 2B, LAN DNS)
+}
+
+internet -> docker-pi.traefik: 80 / 443
+tailnet -> proxmox: admin UIs, SSH {class: private}
+docker-pi.periphery -> proxmox.core
+proxmox -> pbs: backups
 ```
 
 Two Proxmox nodes in one cluster, a Raspberry Pi 5 that does all the Docker

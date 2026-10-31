@@ -1,0 +1,80 @@
+/* Kashlabs — generated from tokens/ by scripts/build.mjs. Do not edit. */
+:root {
+  --ground: #f3f6fb;
+  --surface: #ffffff;
+  --surface-sunken: #e6ecf6;
+  --ink: #0c2350;
+  --ink-muted: #455679;
+  --line: #c8d3e8;
+  --line-strong: #7584a2;
+  --accent: #086a9e;
+  --accent-ink: var(--accent);
+  --accent-tint: #e0f0f8;
+  --focus: var(--accent);
+  --tape: #a8e4ff;
+  --on-tape: #0c2350;
+  --stroke-hair: 1px;
+  --stroke-symbol: 1.5px;
+  --stroke-line: 2px;
+  --stroke-frame: 3px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-24: 96px;
+  --measure: 37.5rem;
+  --wide: 55rem;
+  --page: 75rem;
+  --contents: 12.5rem;
+  --radius-none: 0px;
+  --font-head: "Atkinson Hyperlegible Next", system-ui, sans-serif;
+  --font-body: Literata, Charter, "Bitstream Charter", "Sitka Text", Georgia, serif;
+  --font-ui: "Atkinson Hyperlegible Next", system-ui, sans-serif;
+  --font-mono: "Kashlabs Mono", ui-monospace, Menlo, monospace;
+  --weight-head: 500;
+  --weight-body: 400;
+  --weight-strong: 650;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground: #0d2654;
+    --surface: #123069;
+    --surface-sunken: #091c40;
+    --ink: #f1f5ff;
+    --ink-muted: #b7c6e7;
+    --line: #2f4f8c;
+    --line-strong: #657fb0;
+    --accent: #8fdcff;
+    --accent-ink: var(--accent);
+    --accent-tint: #173f7c;
+    --focus: var(--accent);
+    --tape: #a8e4ff;
+    --on-tape: #0c2350;
+    --weight-head: 470;
+    --weight-body: 370;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --ground: #0d2654;
+  --surface: #123069;
+  --surface-sunken: #091c40;
+  --ink: #f1f5ff;
+  --ink-muted: #b7c6e7;
+  --line: #2f4f8c;
+  --line-strong: #657fb0;
+  --accent: #8fdcff;
+  --accent-ink: var(--accent);
+  --accent-tint: #173f7c;
+  --focus: var(--accent);
+  --tape: #a8e4ff;
+  --on-tape: #0c2350;
+  --weight-head: 470;
+  --weight-body: 370;
+  color-scheme: dark;
+}

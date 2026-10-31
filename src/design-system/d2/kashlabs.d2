@@ -1,0 +1,131 @@
+# Kashlabs — generated from tokens/ by scripts/build.mjs. Do not edit.
+# Kashlabs theme for D2. scripts/build.mjs replaces each double-braced token
+# name with its light value and writes d2/kashlabs.d2; edit this, not that.
+#
+# kl-d2 puts the built theme in front of every diagram before D2 compiles it,
+# so diagrams are plain D2 with no import line. Colours are written as the
+# light values of the design-system tokens; kl-d2 turns each one back into its
+# token (var(--ink) and so on), so diagrams follow the page's light and dark
+# mode. Use only the tokens below.
+
+vars: {
+  d2-config: {
+    layout-engine: elk
+    pad: 12
+    theme-overrides: {
+      N1: "#0c2350"
+      N2: "#455679"
+      N3: "#455679"
+      N4: "#c8d3e8"
+      N5: "#c8d3e8"
+      N6: "#e6ecf6"
+      N7: "#f3f6fb"
+      B1: "#0c2350"
+      B2: "#086a9e"
+      B3: "#086a9e"
+      B4: "#f3f6fb"
+      B5: "#ffffff"
+      B6: "#ffffff"
+      AA2: "#086a9e"
+      AA4: "#e0f0f8"
+      AA5: "#e0f0f8"
+      AB4: "#a8e4ff"
+      AB5: "#a8e4ff"
+    }
+  }
+}
+
+# Class names end up in the SVG, so the page's CSS can also target them.
+# Their styling lives in the filtered globs further down, because a plain
+# glob would otherwise override a class.
+classes: {
+  host
+  node
+  list: {shape: text}
+  zone
+  group
+  private
+}
+
+# Everything else is a service: a white box with an ink outline.
+**.style: {
+  fill: "#ffffff"
+  stroke: "#0c2350"
+  stroke-width: 1
+  border-radius: 0
+  font-size: 13
+  bold: false
+  font-color: "#0c2350"
+}
+
+# Connections are in the accent colour, labelled in muted ink.
+(** -> **)[*].style: {
+  stroke: "#086a9e"
+  stroke-width: 2
+  font-size: 12
+  bold: false
+  italic: false
+  font-color: "#455679"
+}
+
+# A machine or cluster. kl-d2 puts its name on tape, set into the top border.
+**: {
+  &class: host
+  label.near: border-top-left
+  style: {
+    fill: "#f3f6fb"
+    stroke: "#0c2350"
+    stroke-width: 2
+    font-size: 12
+    bold: true
+  }
+}
+
+# A machine inside a host. Its name sits in the top border, without tape.
+**: {
+  &class: node
+  label.near: border-top-left
+  style: {
+    fill: "#ffffff"
+    stroke: "#0c2350"
+    font-size: 12
+    bold: true
+  }
+}
+
+# A plain list of services inside a node.
+**: {
+  &class: list
+  style.font-color: "#455679"
+}
+
+# Where traffic comes from, such as the internet or the tailnet.
+**: {
+  &class: zone
+  style: {
+    fill: "#f3f6fb"
+    stroke: "#455679"
+    stroke-dash: 3
+    bold: true
+  }
+}
+
+# A loose set of things that share a place but not a purpose, such as other
+# boxes on the LAN. Dashed, with its name in the border.
+**: {
+  &class: group
+  label.near: border-top-left
+  style: {
+    fill: "#f3f6fb"
+    stroke: "#455679"
+    stroke-dash: 3
+    font-size: 12
+    bold: true
+  }
+}
+
+# A private path, such as one that only exists on the tailnet.
+(** -> **)[*]: {
+  &class: private
+  style.stroke-dash: 4
+}
