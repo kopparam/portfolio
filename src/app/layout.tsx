@@ -6,6 +6,8 @@ import { Layout } from '@/components/Layout'
 import '@/styles/tailwind.css'
 
 export const metadata: Metadata = {
+  // Lets the favicons and the share card resolve to absolute URLs.
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'),
   title: {
     template: '%s - Kashyap Kopparam',
     default:

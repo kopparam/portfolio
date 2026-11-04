@@ -26,7 +26,17 @@ const FILES = [
   'd2/kashlabs.d2',
   'd2/token-map.json',
   'd2/fonts',
+  'project/assets/Logo',
 ]
+
+// Next.js serves these from src/app by their file names: the favicons, the
+// Apple touch icon and the card shown when a page is shared.
+const APP_FILES = {
+  'project/assets/Logo/favicon.ico': 'favicon.ico',
+  'project/assets/Logo/favicon.svg': 'icon.svg',
+  'project/assets/Logo/apple-touch-icon.png': 'apple-icon.png',
+  'project/assets/Logo/opengraph.png': 'opengraph-image.png',
+}
 
 if (!existsSync(join(source, 'tokens'))) {
   console.error(`sync-design-system: no design system at ${source}; pass its path as the first argument`)
@@ -37,6 +47,9 @@ rmSync(target, { recursive: true, force: true })
 for (const path of FILES) {
   mkdirSync(dirname(join(target, path)), { recursive: true })
   cpSync(join(source, path), join(target, path), { recursive: true })
+}
+for (const [path, name] of Object.entries(APP_FILES)) {
+  cpSync(join(source, path), join(site, 'src/app', name))
 }
 
 const git = (...args) => execFileSync('git', ['-C', source, ...args], { encoding: 'utf8' }).trim()

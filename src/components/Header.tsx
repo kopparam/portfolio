@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
+import { Mark } from '@/components/Mark'
 import { ThemeSwitch } from '@/components/ThemeSwitch'
 import { navigation } from '@/components/navigation'
 
@@ -13,6 +14,7 @@ export function Header() {
     <header className="kl-header">
       <div className="kl-header__inner kl-gutter">
         <Link className="kl-wordmark" href="/">
+          <Mark />
           kashlabs
         </Link>
         <div className="kl-header__end">
