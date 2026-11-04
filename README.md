@@ -26,7 +26,7 @@ Finally, open [http://localhost:3000](http://localhost:3000) in your browser to 
 
 ## Design system
 
-The site is styled by the Kashlabs design system (`k/kashlabs-design-system` on Forgejo). `src/design-system/` is a copy of its built files, so the Docker build never needs access to that repository; don't edit the copy. To update it, build the design system, then run:
+The site is styled by the Kashlabs design system (`k/kashlabs-design-system` on Forgejo). `src/design-system/` is a copy of its built files, so the deploy build never needs access to that repository; don't edit the copy. To update it, build the design system, then run:
 
 ```bash
 node scripts/sync-design-system.mjs ../kashlabs-design-system
@@ -40,9 +40,15 @@ Each article's metadata needs a `docNo`: `KL-` and the next four-digit number, n
 
 ## Diagrams
 
-Write a diagram as a `d2` code block in an article, starting with `# title:` and `# description:` lines (see the design system's Diagrams section for the classes). The build renders each block with the design system's kl-d2 and caches the SVG in `src/diagrams/`, keyed by the diagram's source and the D2 theme, so the Docker build does not need D2.
+Write a diagram as a `d2` code block in an article, starting with `# title:` and `# description:` lines (see the design system's Diagrams section for the classes). The build renders each block with the design system's kl-d2 and caches the SVG in `src/diagrams/`, keyed by the diagram's source and the D2 theme, so the deploy build does not need D2.
 
 When you add or change a diagram, or sync a design system with a new D2 theme, install D2 0.9.0 (`brew install d2`, or set `D2_BIN`), run `bun run dev` or `bun run build` once, and commit the new SVG in `src/diagrams/`. Old SVGs are not removed automatically.
+
+## Deploying
+
+Pushing to `main` runs `.forgejo/workflows/build-deploy.yaml` on the Forgejo runner. It builds the site as a static export in `out/` and force-pushes that to the `gh-pages` branch of `kopparam/portfolio` on GitHub, which GitHub Pages serves at the address in `.env` (`NEXT_PUBLIC_SITE_URL`). The push uses a deploy key with write access to that repository, stored as the Forgejo Actions secret `GH_PAGES_DEPLOY_KEY`.
+
+There is no image server in a static export, so `bun run build` also writes each JPEG and PNG at the widths in `src/lib/image-sizes.mjs` (`scripts/export-images.mjs`) and builds `feed.xml` from the exported articles (`scripts/build-feed.mjs`). `bun run start` serves `out/` locally.
 
 ## License
 

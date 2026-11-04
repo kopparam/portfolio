@@ -2,7 +2,7 @@
 //
 // Each diagram is rendered once by the design system's kl-d2 and cached in
 // src/diagrams under a hash of its source and the design system's D2 files.
-// Builds, including the Docker build, only need D2 when a diagram or the D2
+// Builds, including the deploy build, only need D2 when a diagram or the D2
 // theme changes: render locally (brew install d2, or set D2_BIN) and commit
 // the new SVG.
 

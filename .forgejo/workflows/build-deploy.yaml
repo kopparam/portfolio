@@ -1,8 +1,9 @@
 name: Build and deploy
 
-# Builds the image on docker-pi's runner (natively arm64, which is what
-# docker-pi runs), pushes it to the Forgejo registry, and asks Komodo to
-# redeploy the mywebsite stack with the new image.
+# Builds the site as static files and publishes them with GitHub Pages, by
+# force-pushing them to the gh-pages branch of kopparam/portfolio on GitHub.
+# The push uses a deploy key for that one repository (GH_PAGES_DEPLOY_KEY),
+# so nothing has to reach this runner from outside.
 
 on:
   push:
@@ -16,86 +17,86 @@ jobs:
       - name: Check out
         uses: actions/checkout@v4
 
-      # The job container has node (for the JS actions) but no docker client.
-      # The daemon itself is the host's, mounted in by the runner.
-      - name: Install the Docker CLI
-        run: |
-          install -m 0755 -d /etc/apt/keyrings
-          curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
-          chmod a+r /etc/apt/keyrings/docker.asc
-          echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian $(. /etc/os-release && echo "$VERSION_CODENAME") stable" \
-            > /etc/apt/sources.list.d/docker.list
-          apt-get update
-          apt-get install -y --no-install-recommends docker-ce-cli
+      # The job container has node and npm but not bun. This is the version
+      # that wrote bun.lockb.
+      - name: Install bun
+        run: npm install --global bun@1.4.0
 
-      # Derived from the instance this workflow runs on, so the registry
-      # hostname is not hard-coded here.
-      - name: Work out the image name
-        id: image
-        run: |
-          registry="${GITHUB_SERVER_URL#https://}"
-          registry="${registry%/}"
-          echo "registry=${registry}" >> "$GITHUB_OUTPUT"
-          echo "repo=${registry}/${GITHUB_REPOSITORY}" >> "$GITHUB_OUTPUT"
-          echo "tag=${GITHUB_SHA:0:7}" >> "$GITHUB_OUTPUT"
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
 
-      # The automatic per-job token is repo-scoped, and on most versions cannot
-      # write packages. Try it anyway, and fall back to REGISTRY_TOKEN (a token
-      # with write:package) when that secret is set.
-      - name: Log in to the Forgejo registry
-        run: |
-          token="${{ secrets.REGISTRY_TOKEN }}"
-          if [ -n "$token" ]; then
-            echo "authenticating as ${{ github.actor }} with REGISTRY_TOKEN"
-          else
-            echo "authenticating as ${{ github.actor }} with the automatic token;"
-            echo "a 401 on blob upload below means it lacks write:package"
-            token="$GITHUB_TOKEN"
-          fi
-          echo "$token" \
-            | docker login "${{ steps.image.outputs.registry }}" -u "${{ github.actor }}" --password-stdin
-
+      # next build writes out/, then package.json's build script adds the
+      # resized images and feed.xml. NEXT_PUBLIC_SITE_URL comes from .env.
       - name: Build
-        run: |
-          docker build \
-            --tag "${{ steps.image.outputs.repo }}:latest" \
-            --tag "${{ steps.image.outputs.repo }}:${{ steps.image.outputs.tag }}" \
-            .
+        run: bun run build
 
-      # :latest is what the stack runs; the sha tag is there to roll back to.
-      - name: Push
+      # Read from .env, so the address is set in one place.
+      - name: Work out the site address
+        id: site
         run: |
-          docker push "${{ steps.image.outputs.repo }}:latest"
-          docker push "${{ steps.image.outputs.repo }}:${{ steps.image.outputs.tag }}"
+          url=$(sed -n 's/^NEXT_PUBLIC_SITE_URL=//p' .env)
+          host="${url#https://}"
+          echo "url=${url}" >> "$GITHUB_OUTPUT"
+          echo "host=${host%%/*}" >> "$GITHUB_OUTPUT"
 
-      # The stack has auto_pull set, so DeployStack pulls the :latest just
-      # pushed and then runs compose up. Calling PullStack separately would
-      # race it: execute requests return as soon as the work is queued.
-      - name: Deploy the mywebsite stack
+      # .nojekyll stops Pages running Jekyll, which drops folders starting
+      # with _ such as _next/. CNAME holds the custom domain: each deploy
+      # replaces the branch, so the CNAME GitHub commits when the domain is
+      # set in the repository's settings would not survive. version.txt is how
+      # the last step tells that this build is live.
+      - name: Add the GitHub Pages files
         run: |
-          curl -sS --fail-with-body -m 300 -X POST "${{ vars.KOMODO_URL }}/execute/DeployStack" \
-            -H 'content-type: application/json' \
-            -H "x-api-key: ${{ secrets.KOMODO_API_KEY }}" \
-            -H "x-api-secret: ${{ secrets.KOMODO_API_SECRET }}" \
-            -d '{"stack":"mywebsite"}'
-          echo
+          touch out/.nojekyll
+          echo "${{ steps.site.outputs.host }}" > out/CNAME
+          echo "${GITHUB_SHA}" > out/version.txt
 
-      # DeployStack returns an Update, not a result, so a 2xx only means the
-      # deploy was accepted. Watch the container until it runs what was built.
-      - name: Wait for the stack to run the new image
+      # The branch only ever holds the latest build, as one commit by whoever
+      # wrote the commit being deployed. The host key is GitHub's published
+      # one (api.github.com/meta), so the key is never offered to anyone else.
+      - name: Push to gh-pages
+        env:
+          DEPLOY_KEY: ${{ secrets.GH_PAGES_DEPLOY_KEY }}
+          AUTHOR_NAME: ${{ github.event.head_commit.author.name }}
+          AUTHOR_EMAIL: ${{ github.event.head_commit.author.email }}
         run: |
-          target=$(docker image inspect -f '{{.Id}}' "${{ steps.image.outputs.repo }}:${{ steps.image.outputs.tag }}")
+          if [ -z "$DEPLOY_KEY" ]; then
+            echo "the GH_PAGES_DEPLOY_KEY secret is not set" >&2
+            exit 1
+          fi
+          if ! command -v git >/dev/null || ! command -v ssh >/dev/null; then
+            apt-get update
+            apt-get install -y --no-install-recommends git openssh-client
+          fi
+
+          ssh_dir=$(mktemp -d)
+          trap 'rm -rf "$ssh_dir"' EXIT
+          printf '%s\n' "$DEPLOY_KEY" > "$ssh_dir/key"
+          chmod 600 "$ssh_dir/key"
+          echo 'github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl' \
+            > "$ssh_dir/known_hosts"
+          export GIT_SSH_COMMAND="ssh -i $ssh_dir/key -o IdentitiesOnly=yes -o UserKnownHostsFile=$ssh_dir/known_hosts -o StrictHostKeyChecking=yes"
+
+          cd out
+          git init --quiet --initial-branch=gh-pages
+          git add --all
+          git -c user.name="$AUTHOR_NAME" -c user.email="$AUTHOR_EMAIL" \
+            commit --quiet --message "Deploy ${GITHUB_SHA:0:7}"
+          git push --force git@github.com:kopparam/portfolio.git gh-pages
+
+      # Pages publishes the branch a minute or so after the push. Wait until
+      # the site serves this build's version.txt; the query string gets past
+      # GitHub's CDN cache.
+      - name: Wait for GitHub Pages to serve this build
+        run: |
+          url="${{ steps.site.outputs.url }}/version.txt"
           for _ in $(seq 1 60); do
-            running=$(docker inspect -f '{{.Image}}' mywebsite 2>/dev/null || true)
-            if [ "$running" = "$target" ]; then
-              echo "mywebsite is running $target"
+            live=$(curl -fsS -m 10 "${url}?t=$(date +%s)" 2>/dev/null || true)
+            if [ "$live" = "$GITHUB_SHA" ]; then
+              echo "${{ steps.site.outputs.url }} is serving ${GITHUB_SHA:0:7}"
               exit 0
             fi
-            sleep 5
+            sleep 10
           done
-          echo "timed out: mywebsite is running ${running:-nothing}, expected $target" >&2
+          echo "timed out: ${url} says ${live:-nothing}, expected ${GITHUB_SHA}" >&2
+          echo "check the pages-build-deployment run on kopparam/portfolio, and that ${{ steps.site.outputs.host }} points at GitHub Pages" >&2
           exit 1
-
-      - name: Log out of the registry
-        if: always()
-        run: docker logout "${{ steps.image.outputs.registry }}" || true

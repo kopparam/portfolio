@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
+    "build": "next build && node scripts/export-images.mjs && node scripts/build-feed.mjs",
+    "start": "python3 -m http.server --directory out 3000",
     "lint": "next lint"
   },
   "browserslist": "defaults, not ie <= 11",

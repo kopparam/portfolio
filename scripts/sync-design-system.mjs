@@ -3,7 +3,7 @@
 //
 //   node scripts/sync-design-system.mjs [path to kashlabs-design-system]
 //
-// The site carries a copy rather than a submodule so the Docker build never
+// The site carries a copy rather than a submodule so the deploy build never
 // needs access to the design system's private repository. Run this after
 // building the design system; it records which commit the copy came from.
 
