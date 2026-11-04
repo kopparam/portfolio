@@ -1,0 +1,442 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+    <channel>
+        <title>Kashyap Kopparam</title>
+        <link>https://kashlabs.com</link>
+        <description>Your blog description</description>
+        <lastBuildDate>Wed, 04 Nov 2026 12:46:13 GMT</lastBuildDate>
+        <docs>https://validator.w3.org/feed/docs/rss2.html</docs>
+        <generator>https://github.com/jpmonette/feed</generator>
+        <image>
+            <title>Kashyap Kopparam</title>
+            <url>https://kashlabs.com/favicon.ico</url>
+            <link>https://kashlabs.com</link>
+        </image>
+        <copyright>All rights reserved 2026</copyright>
+        <item>
+            <title><![CDATA[Homeprod: when the homelab becomes production]]></title>
+            <link>https://kashlabs.com/articles/homeprod/</link>
+            <guid>https://kashlabs.com/articles/homeprod/</guid>
+            <pubDate>Sun, 20 Sep 2026 00:00:00 GMT</pubDate>
+            <content:encoded><![CDATA[<p>A homelab is where you try things. You spin up a Kubernetes cluster on Raspberry
+Pis, put Ceph on a thumb drive, and learn a lot. Nobody minds when it breaks,
+because nobody was using it.</p>
+<p>Mine stopped being that. Photos, documents, the family tree, the budget, the
+camera feeds, the music — all of it lives at home now, and other people in the
+house notice when it is down. That changes the rules. Uptime
+matters, restores have to work, and "I clicked something in a <abbr>UI</abbr> six months ago"
+is no longer an acceptable description of how a service is configured.</p>
+<p>So I started calling it homeprod, and I rebuilt it around one requirement: if a
+machine dies, I should be able to bring it back from a git repo and a backup,
+without remembering anything.</p>
+<h2 id="the-shape-of-it">The shape of it</h2>
+<figure class="kl-figure kl-wide" id="fig-01" aria-labelledby="fig-01-caption"><div class="kl-figure__frame"><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" data-d2-version="v0.9.0" preserveAspectRatio="xMinYMin meet" viewBox="0 0 1560 1228" class="kl-diagram" role="img" aria-labelledby="d2-3003092255-title d2-3003092255-desc"><title id="d2-3003092255-title">How homeprod is put together</title><desc id="d2-3003092255-desc">Nothing comes in from the internet. Visitors to this site reach GitHub Pages, and the Forgejo runner on docker-pi, a Raspberry Pi 5, pushes each build out to it. Traefik on docker-pi serves homepage to the LAN. Admin access comes over the tailnet to a two-node Proxmox cluster running media, photo, document and Git services. Komodo Periphery on docker-pi reports to Komodo Core on the cluster, and the cluster backs up to a separate Proxmox Backup Server.</desc><style>
+.kl-diagram .host &gt; .shape &gt; rect { stroke-width: var(--stroke-line, 2px) !important }
+.kl-diagram .node &gt; .shape &gt; rect, .kl-diagram .group &gt; .shape &gt; rect, .kl-diagram .zone &gt; .shape &gt; rect { stroke-width: var(--stroke-hair, 1px) !important }
+.kl-diagram path.connection { stroke-width: var(--stroke-symbol, 1.5px) !important }
+</style><svg class="d2-3003092255 d2-svg" width="1560" height="1228" viewBox="-1 -1 1560 1228"><rect x="-1" y="-1" width="1560" height="1228" rx="0" fill="none" class=" fill-N7" stroke-width="0"></rect><style type="text/css">
+.d2-3003092255 .text {
+	font-family: "d2-3003092255-font-regular";
+}
+@font-face {
+	font-family: d2-3003092255-font-regular;
+	src: url("data:application/font-woff;base64,d09GRgABAAAAAB3kAA4AAAAAMjgAAWZmAAAAAAAAAAAAAAAAAAAAAAAAAABPUy8yAAABRAAAAGAAAABgfmGEVmNtYXAAAAGkAAAAwwAAARoGTAfqY3Z0IAAAAmgAAABsAAAA5i+SaDpmcGdtAAAC1AAABxcAAA4MYi8FgGdhc3AAAAnsAAAACAAAAAgAAAAQZ2x5ZgAACfQAAA51AAAVlCje6GtoZWFkAAAYbAAAADYAAAA2OVnoVWhoZWEAABikAAAAJAAAACQWyOu3aG10eAAAGMgAAACJAAAA3ApoJiNsb2NhAAAZVAAAAHAAAABwmqSgJm1heHAAABnEAAAAIAAAACAFLhcdbmFtZQAAGeQAAAMUAAAIdBIuX6Nwb3N0AAAc+AAAACAAAAAg/70ASXByZXAAAB0YAAAAywAAAOGg8z2vAAQE2AGQAAUACAUUBLAAAACWBRQEsAAAArwAZAIDAAACAAAJAAAAAAAAoQAC/xIA//sCAAAUAAAAAFVLV04AwAAg//8HYv5wAMgHYgH0YAABnwAAAAAEAwW0AAAAIAAFeJyEzVsrgwEcx/HPY4/zNufz6cGwsY2NuVdSIkkpufMO5FLeFaXI6aV4HdJflnv9bj/9vkjkJMhLkyJKMqlUpqKqpq6pZd+hY6fOXbh07dZjBDLlP9XQsufAkRNnbXXl5lfFp4Iu3XLxHV/xEe/xFq/xEs/xFA9xH3ft/v9LtOxq2tFQt2lLh5xUZ/u9R68+/fIKigYMGjJsxKgx4yZMmjJtxqw58xZkFi1ZVrJi1ZqyinUbqmq2+QEAAP//AwDAuisiAHicYiAdbGbYzDCfYT7rFgYGFmYGhn8FCBayHOsvhCyMzVDFUMUQzxDPJMEo/O/FPzkmZ0aFf7f/CRKrD6QLppdR5t99Jg2wfjmYPFs5iw97DYhkbmJrYHFm72FrYbFnLgUAAAD//wMALG00PHicrJb5d9vGEcd3QZA6IkuyddgNUneQNVSXWNBK6ziMzTgKVhTjqGlpWW4Bp2kBkXLvI+nl3vfF/DPfpdpX97f8aX2zIFXJkdLX96ofNF/sfHZnd2awBIQmiIdZNyfafSoW7++i8eBRhpsBrufFYxo9zOBF5b9mxawYDNRBEIYQOYRR22MhhSnSBFKDiscJPK1CFSaoaRoe1VbXRGqwYqgoUuutmtRGNQPP7D8hLCh4xpRD+P0nY8/zTJEiPHwh5NHx4ppMXyB4RqXjFbliilRB9LPDfLwuPRfQ16jFWDMZx8O6MRMgoCHhwz78jUfj6/KC6Q66aHSzELUo33snC1UYjDJCv5+F2MoDQptVO8/JVnQ5xPV+Fk6eCJvs32Tyw35Gj2k0Kgnz/awICMS+eVa3WN0qgiLP8wBehAUzgNjLIHYZDrFggl1cZXV1t3y6LAZMPK2LgzwfljlknOeTE+Q0xLpRaZ6grqlL8KNySJgx/QwzKsWsSoMwzCGLBA2XbtRiGtqZg5TYyccNqu3zfzSK7gD1ZkiYNTSiEWRsN+sR/I37WdEPyr08U3mYE7YeZJBxwHmZbCXBjMacicfCq8o8qzGnUkUQKi3hHTyGHEAWmGkmmNPEu100g6e+OCBeAVtFzkix7XY7r8dzi8J002Z43DjP6dONtFCtImMFYeBHBXVHquSiumSLgAsCCrB1nDDUIlVuVyEunDMd1/oZRICtsyYtcv+r9OjCgqh1+1kYqDBvhgmWtPW8LobldoJlDVkQYcm8xScjLKk0xzI/7WWEZVevi5qw7JJCT30xGKkSF01Bo4JwUaUqwSW9u59Zf7idX8OFQ/UkwYrevZ/tPqgGgzC/hhU3vqqtuGQeZvbSJQNZprgY8ysHL0rtEv9b9qIUcl0RalE/s5xO+FE6GhGHXW6GCrKc6qDy8xQvct4cS6aHZdMr4J0u1jkltEKsqG1IA3F3LKV01VvTwgqvu5/hkkqpi0WV4oJCo0ip+OeVK1JcFCsiTVPOwKpKIUu7Ohvjgzh4MU+wrq1YixNc1layvaKtx/YT2tbYPq+tzzbQts72BW0bbD+p7Qzbq9rOsv2UtnNsY62m+Uej2N3PFLUg3+W3JYE+4Vw/dr5XOZMTzo1j5/uVk7TAUnzuOSHLf1RH5XOePF+oraA4wYvaSrZKW4/tNW1rbCNtfbYb2tbZflrbBtvr2s6w/Yy2s2yb2s6xbWnquIa9oanAlYKMgiwMX878Era4Zzc1bsS40Uzwkibq0TnVVGVb8cX+sUTAp//stMR2sdHljsNLTVuXa91sM3dV/NyJ9JzH3NT0stv5y1pMmO5HY0LGZ+6Fx8X63wX/bd9VbXtTrvFZb2nqUO+c/UOYsp3gFd263EnQ/m8opBm0E7yqrSfWI2pRj68EeNG90aineqqk7CDgW1el47aUa6vNBLc1xDouqxR+BD9ymF0QKZ4z8eGopYg6o3aCO6cxajmQ0FDplCYUfKds3c+OfKpTcORv1J/PU75p5w2NlJuhdgo0zLOva8G3XfWr5JtiqFA35bCfwTdlgLop+KZ7dk6piOBvqJ2yHSjMmx3+xZo3LkpBZwVRHEWhYQouRj0qUf/IqvA3Sv614k3UomI4uUn/EytP0JnmgohQ35jkQnXaCV47dmHe+XdUj4NyFe9Ofe4wVaYh9rMWdVTofm+9aJLV+nEp0IhQj+6d/HapinhGC6hJtRS3/OsndmKm5Sr4A+fZI09LvKUVtTiLO7hssn6wl2fUyVt2U67GCd445d0L+qe86ZlzP26G0bgdnzVpCmxr3IlHRB3usVH7fBQN08JmnKDrjsxtvFFlvsSCSqujc4Mq6lBLtSfr72g770fpdMr/2NK9/1cX85n4HuuodhCe6Jcwn+yzp624HU+z8qa24k4cqkleVPt0Cu5piLXqtR8LfsNXWrjVTPDWOeO72gq5uoJXmgk+r/FqM8HbnMWuohbtjFQ5zdYXNDc03o4TfFGPhdiJE/T1WEgW9/VYupE9PZZu5AEzvTjBPjMsHjLD4kvMsPiyPhJCmDhBpo/40ylOkOsjWY090keyGnuHOcnqK8w59S5zTn2VOae+xjG7cYKCY7IoOSaLA47JYsDMm3GCITMsDplh8ZgZFl/neGI7TvANjufUNzmeU9/ieE59mznJ6jvMOfVd5pz6HnNOfV9b0Tku4A/cE7biBO9V8o04wfucdPeUxgl+qK2cMD+qJDM/doycMD/RVrx2vOpP3ZOb8aSSPONnlWT859rKCfCLSjLwy0oy8Cttxd3j9X7tnhz+m0oy/ttKMv47beUE+H0lGfhDJRn4o7bi9eP1/uSeHP7nSjL+l0oy/ldt5QT4WyUZGFWSgQ/0+Dn3ZYtGMPa9WjdTYRDmeRpj9hC1a/0nti7XutlmnvwbAAD//wMA3jABUwAAAQAB//8AD3icjHh7dFRVlv7e55xbtx6pqpy6VamEYMulLCJExLaslN2ty9uk/RHqV8QelUbRJgwqDwc0NNNqiw8ciaLIQxQUBomsDgoToVFq0r5iiMbp0dae0cWjm4EetX2AItKNGkjqbmedU5UQehrX/HMXi5Wz99nf/va3v1PAYSqAuMvIA4cwJKHBuTR5VnWlMDyYA48whMdYBAjCg2IOGMC4weaYyAH41SZyDk0AHC4TYuSIYVWWFGERSspyr6eqNmVLG0alL6hLnV8Ri3oSUPqHaSZq6urSF4xKjPSYNVPFWf378VA2m8lksxla3P305lcfvpMtFbffPWvajJt8K4x839HxdRnHydSN57sfW/XQwpbqlb8ZPmPaFY1TrgsDMOgAECONPPggBOOcc4JlAQ6GAMwZKIChYLMBYMIkjogN2Oj3+0P+kJQR6fEPq7UwhTIhbZlAybnswPEHcXw3VXSz9q++4j9nl7jdhaW4kppZAqvwbfouHQIADi8BiB8befBCCKKQdSbIcs6EIQQyI+D3GIIznjOxiNcsEELhBBMmeZBzbAJ9k3DY5wtHw1Er4gv5QtGKcq+/qtayrZgZl2gnM+kaW6L+vsRuOPHyMdrrPsr4O7vpdbzw6afp3408ffnxb/bRF3T0kc5HX3MPs6dfaX6BqgAQbgYQk4w8BOBsJ2l6EARDzAFi6R7AGG8Czht4o7RkRCgoJNpxGyXapn0zNrMrqt0TdAjjzKx2t7IKXMHC2+g6OkTXbgMYwH2OkQcDAnCuU+s1OROcYQ4YK2URQ6r1eDwBTyBqlRu6SpUnqT6yg9VjM610O/GPGKPP6EMj7/6FbnE/3IabsQLX9W8GhE4A8QPd44QzAhhwwfisIeUI0SAapZSy3PBX11p23JZ2zJaJTj6z0q1nGfeNbiPf5r7/z+6/wAA+TUYeJHzfyXiQCfSbwBkPo8F4DgSoWoYmYMxoAsNoMBojMmLJiMc/fAhiGWmnbVnE7dxKOpM+w2ocPYHew9dXURWrxKVMlsCbgIsfd5dtABzkbQBs5zvAAZDDLIGMTZhkFLmqCpLlKhXaMiFT0pYpmeDTaHhPD37Y08M2uk1G3l3GFvTlVE8Q1gCI8TpmwhmhGM+aQAUUCDBQwMmoGVvaGY2Vaa/Bm2hVlC+O0mK8I1q4o03MbWvrf7StGPd5AFFn5KEcvuucW+ZjnAUReAgYAs/9zbtHIyqNypLEhL58CmVKIsoEn03/9lxPz9s4uofacfLvjmOrO8fIu/fibWjQHrqeLqI9xbw9AOKHmmNVTkWxE4hsOjDWwBqlLOeKTClpm3ZPN3s5Xlin5KJ05yK+/woB+I5T7WWMAeYQVQyO+rwlrXLN/BSmFLDqnh3bsFDW0eb2lXUY+f79ItmXExf1v6b4fnOJ7yaE4XxnXCjo9xkCwXt6znu93rBXDbjmvMQiV1BiAiXejLdiFd5ID9CXeQxT7zT6HENFqrhf0M/dg8/iRozjOppJh6gJmNaca3X+oMrv93EmBC/KnGLwLCjKsQJJ1+f1eoPeYFRa5R5Vpc4uEwOSMhu/R6/TtB4W2PMf9JyRpw/pP2mH+xHbdrTjBXejwrCYc7KRhzKIwMXO98OhQZXzGgwZz3nQAIanaFxJaIPBYCQYicpIrNzUM4m6+emhd5iC9fQehl77Bol6mLF7N3UZeTpA/dRL91LfEVzgtrJP9yzvcg+o+yA8XuJhGM5xRgfLAn6ltF4odkDDPmGSEuiStsVkTHc4Y2fSmFayYMYwxu3H2YQV7gXH2bxKd98K9tZxd/5Tv86xYW/g2U/9Oud+/Ab9HrS0iF9ovKudSoYAA/F1aDVDKjQWJyjBAnSl5MclXfmqUd7W1nd0CAfVPJ7l2D4PB4GAORVMM5lPL94zEolIFSwjUzJuq69pd/RMxfOm9jzjHt4rDvTfePvtYk1/Yi8gbAIQKSMPFpztJGV5uCzgNz0GQygDVLERFcMBGqAxGo1aKm4SeSyh4E/F0EqXpvBm+lNvB/6IXu7BM3o7qBPrez7F2+jBw1iFu7Adhx+k+3HBEfqExtKV9KGu56HSDPjgTGc4nIRkyDqJyGIpaGeScbVMVrKXXcfmk8e5E9if7cKt94vlG/Ce/rmtwOCWbw6JCwSHIFhQ56QCHgZoRcKcGVywHCKfCACCg1BarLUsW8LfishIVIl90kimM3a6RvVBJpLJtG3G+BICOnKclc1xD1ayKW8tpmG4nb738F2rP/js6bZ5q/cWdt01/3DTTZrj7Voz+/RcjXISZQE115wh+DGr0FREUGAWx6mC++O1Vkbq5ZXMyBpDtndjO9ZSj7uJGbu2UIvxB9t9/AE6RqPpjTX7cPaya9yHStiNE/w0Ozl7+p1sxuK2aT+El7L6avfw/v0sWu124hScjFNaD351UOG45puDYqzRB77iZIRDAc4MZJgzPQyyiDhxQKGyincN2GhZUSWeSUPVITMKOWmbkt9DDu3Gi3BddwtNxoW0fdetKzCIezGDe+w+z4ap7B/30VqF2xMAIiM4lIEF451LIuGQQMMQBqLhBcawKA7IDBwUh1OKDAaDVtCKyogV0QKhtmnMtHWxWiDM2BOYwLfa73Yf/xh3VbpHceaPL6ffdhdL39p32/WfrWbXT7x74olKxc05AGKJ0Qdh5UZ8giHHnEA0EDwIShw1fyZOAo+nwdMoZURGZLnpP6MW1fIuioM2Dfg8PYuX9eMrcXqgFXvJ9yL3rcVzcUxrV9/aQq+qfT01ixFCaN6OdcZYkXDAo0jjA445KG2ArJIinTTHGq1InZYiw85IjXksJbltJaVtxjCKzz5J19B+vAiPTe4nz+9wPvX8/s9dKG9FjjMwg/2P0R629mqG+z5Stb4AIM40+iAAw5y4z1ucf6/qtJ77Cov5K2uxxpAJqahqJXjT/fRkVxf+EhnbyT5YdnnhT4qmrf9EXxe+UNrK4BkAfqFnFHjAD0lnpFIqzPl9Xo7ZgUnPljZLpLh5tfbJBM/ETfb39P8r8euZXT/b1NbGp21aUGg2Hly//glgsIWa+X2eUeCHEJznjDURmVctY5YLBcs4yw6Z7JJy53ijJSMaLqWGOgu3MRM3t+CsVqqOs5qZ/dSId2xqa/v0Ff7gpgUFP+0xh6l8qHfWdUZf8TUQQGBlyqawnMdgPAsMAJmmQ3aSwOIoSEtKLSXKAciMTGEKMZbgN9HOHTt3voTXvkNzcfYbT2EdnWX8wS4sxOWUprXvKNwQfgIgrjD6wA9jnBoDAT1q1lhuALSJfzXZWh5ROy+puf4CPRHHJ2e24g/jdBuOEWOeWtB/oGuTir0aQNSLaoio2OWhsmKjfWrhhYOMZbUgcmTFrsui2mONKRNSf1LxTDwTlwn+WMOKzdnl7XeN/OD+vvZneDJ7aWEPT2Z/VNgt+A13Pvjg1sKqQV6J6qJ/9JkMwVAs8CKqNmUnsdJekZbuvyZYKp5Upm76Enqya2ktPoOiq0gwwee1aHoxrX05wb/VO2X/D94pk65JmLH4Q3gp1uOF9CL99rMDBzbu31+UBNpC7bRFaeLBrw5qTrdTsxgvqrUupp3zQ8GygCGYyQFzHCF7Mut0lVU1KsfUEzHsD8tY8amiyyuaFi32LaOwW6k9zewuyr3gv3i4KPbUzEad1HuFZc0AlgG/RtM8Bc3iXpFDhjUVT8bjJp+5iFZ1LR2DzxPvZh8tu6rwseALH3Hbz1A9ehdAqJ14eg+UPb0HypQ8kGm/y0Iz3PXb2d/FyT+Dzdjurl05P4lz1u1bOf8sWrNun6IvzAUQtcZwCMNYZ0wAmHpWKwqqxchRuRml7YMvi4iit/L8yuilZEYqPY3bMRtvOHHiRVbmftmK8yiNY/C/1+JVI+m+tXTN662Kd98cEmcKPpR3yih5EScyPLm0BngXTyq/XmOgTOFtS3B619JaupIKXWgvu5yf0e/OW4w+LktacIbg4Fd+xWsIDsbAM2BQy6JScdmSKWmpDyZe2nnsL520/VXm4Gt0AznYiRvoYncnIPwUQCwUHCJqx5QH/T4d08f1IgcOyBcV76tIpY1dNKqlRUW2rHQqpnPwBOeJn269b+1961q27lrf2rqe1eHbdA1djW2rV6kvbqaU+yZuoBm6D90AIi74t3i+7P/yfEkzlkgjplMxI5NOxbSi/YT69u/AEfReN3r276D3cET39kLfc3vRwdjeXxVOPLeXuunTvTrnk3rHKZ6d7SRLpTLvyXyKY8q/5nhjJBobVGvVFKkbxO1j+O5Guoo+eGU9zn2x3z18pAutezDEVrlPPDKZbVRLraihG9X7Xgjwqc1j6M1zys45vbvcwua5S+N8xDh3NWuNF/KL2fsb8G63agMM6OdUIw9+xSvBGdeRlWVVbRqw31JGSyMijXQypVi7Gu+lNrxlMy4q/KBNXDV/6x2D78oVAKJBv4nOdpJeU/3CBJj722bYklbRDGt/aqi1b69g+W4aPYxJHOvOZgcKd77K3j62eNu71ORe11by95foN875zji1IYW+tFC/wuGgj9HvnIHBs6TUrzz1pFfOybLjNtfpOvDA55vcN2v4sKj7szh+gpw2u59s++MvN7BP2uiqL+ldehEQ3wTgIawHDpZTPlBKAzbKcq1NtrTxTfVUwHrqBEB8iabzMNaDB6qcCoUrThxyKjpwitdYCXwL64/M3LpeHaXp52GzOv8mujzEHeBQ6cTUf8CU0nnAy/46KXeoExDPYRfzZ9j7334mZuM5bJG7iL3fpv7kH6hZRD3jQeq6ELAFAHLQWKk1FyKReGIUY+kLIpFMysNYjI1e9M66Hcv/a9nyfct3rHtnEc6lNfT1kmY0cWFvLy5Es3kJfU1rPgeEHmrm8wZjA0KL6hMOxGasJlURicSijJmJukgkzX51amz+//BG9C9pphPU0ttLLXSieQn68cbP/wcAAP//AwALdNbYAAAAAAEAAAABZmYqw+fzXw889QAHB9AAAAAA5dEaWwAAAADl0R2w8fv8VByhCMQAAAAHAAIAAAAAAAAAAQAAB2L+cADIBNjx++g3HKEAAQAAAAAAAAAAAAAAAAAAADd4nEyNIQoCURiE58Ecx/MYBDGLwjZPsWBSDAoaDKJZlMUgbDKavuPIwwkbHu/7h/kYo4mRjO5GnVETfg14a/Qw6nM36da3M5olPxu1Riuja7i6B6O50d7oaXQzusQfG22St/Fq52u0DNedqdHb6Gh0irP+b5aPKV3+kSkLo/4HAAD//wMAWVdQbQAAAAAAAGAAYACaAOoBHAFSAXoBvAHmAhICTgJsApQC1AMOA1YDjAOuA9gEFgQ+BIAEtATiBRwFZAWaBdoGBAYwBmgGoAbOBwYHMgduB6wH2AgOCEIIbgiWCNIJDAlCCW4JmAnICgIKGgo6ClQKbgqcCsoAAQAAADcCkwA4AAAAAAACAVACEACNAAAC4RJ4AAAAAHicrJRNbxtVFIafcWKnUdqKL9FKSHCaRW1L7oztdtUikWIljYnrIjsNWSHG9sUeyXNnNDNu6+6QQGLNArFkxRaJX4JY8HMQmpubJnFjSpRmET1+z3vPnI87A3zkfIFD/udw0/zPucAaNy2vInxiuUiFzyyX+Jix5TX+5AfLV9hwnlpe55bzjeUNbjjfWb7KDecXy9foO7+zgrO6jkO9ULBc4HqhaXmFXmHL8ipbhZ8sF/my8JflEp+ubFpec35d+dryFT5c/cfyOp8XP7C8gVs8sHwVt/i95Wv8VvzD8jvUS4eW3+V66UfL77FV+tny++yX/n4caT+N/aGSvWQeZ5GWnSR6qXRPjWdTP1kWFhs/UEkaRFoa7r16XSrL7NVXAasfyXdsllYUz5NgPMmkWW/elUdBtjsb1KSth65UJlkWp/c9bxxkk9nAHUahRa1eZF54nLhak+dBNpGeSlXyTI1kJ9KZdP1QpVJ+9fhy7dQPeZiMI31W6qpF5VDpRannj4zk65GUX+u57HZUlqkk9LNg2Aumai6txNdyW7KJklMx2Vd+eNze9ETPe1wi99sdeRIrfdRdJxgqnSppuA35n2PyBtNo4IV+oL1Ou7Xd7W/zmAiNT0qMzxCFsEfCnJjMxIQdEiJeotD0UIyZMcUnoYHLPerUecBT9viKLg/OyXk24+l8dxYyXrQeWTh/gCIhJbDekwqFyoW7rV6qlxYRMXMSAsZMyBCa1GlyF+ERARm7zBhQQ2ijGeKaOnNvRkzKfTw8xsY7MV6XIRHhgqpRvCDDI3yt4qrJ/9y6jyaWmjk9QzEyPedn8vq6+IQmLpTP6b5MbUlEeEjC2Oj/5eqi3ug5NPN8k6uHz+hULh/NaKn77N7KuHRQZs75JEJ8MgKG9AiYopgjtEhMVuE2YqaXP/f8c8I+ykxvcXvTc/3He7yYu0+bDsITYnv/T3bXMfXnar5dMW9nA3nLt8ljwJSIgYn6BGg8OrRpsU2XPpf9qlz2GxCbNy6fybdU2GQXxdTUnN+li2a/xSbVfwEAAP//AwCrQ7jJAAMAAAAAAAD/ugBIAAAAAQAAAAAAAAAAAAAAAAAAAAB4nGLw3sFwIihiIyNjX+QGxp0cDBwMyQUbGdidthckBDiYqLAxaIF4DnypHKEcrhyWbJoc0uxsXFDBXLZYNl82exZDNiVWsCCv037JBtEGwQa+Bq4GdgYGNgZurY0Mwk77GRyQIEh0JwMzA4PLRhXGjsCIDQ4dESB+istGDRB/BwcDRIDBJVJ6ozpIaBdHAwMji0NHcghMIjIyMtKBL50tnM2dzZpFm02WlY1Pawfj/9YNLL0bmRhcNrOmsDG4uAAAAAD//wMAoBU0WAA=");
+}
+.d2-3003092255 .text-bold {
+	font-family: "d2-3003092255-font-bold";
+}
+@font-face {
+	font-family: d2-3003092255-font-bold;
+	src: url("data:application/font-woff;base64,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");
+}</style><style type="text/css">.shape {
+  shape-rendering: geometricPrecision;
+  stroke-linejoin: round;
+}
+.connection {
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.blend {
+  mix-blend-mode: multiply;
+  opacity: 0.5;
+}
+
+		.d2-3003092255 .fill-N7{fill:var(--ground, #f3f6fb);}
+		.d2-3003092255 .stroke-B2{stroke:var(--accent, #086a9e);}.appendix text.text{fill:var(--ink, #0c2350)}.md{--color-fg-default:var(--ink, #0c2350);--color-fg-muted:var(--ink-muted, #455679);--color-fg-subtle:var(--ink-muted, #455679);--color-canvas-default:var(--ground, #f3f6fb);--color-canvas-subtle:var(--surface-sunken, #e6ecf6);--color-border-default:var(--ink, #0c2350);--color-border-muted:var(--accent, #086a9e);--color-neutral-muted:var(--surface-sunken, #e6ecf6);--color-accent-fg:var(--accent, #086a9e);--color-accent-emphasis:var(--accent, #086a9e);--color-attention-subtle:var(--ink-muted, #455679);--color-danger-fg:red;}.light-code{display: block}.dark-code{display: none}</style><g class="aW50ZXJuZXQ= zone"><g class="shape"><rect x="12" y="372" width="116" height="60" style="stroke:var(--ink-muted, #455679);fill:var(--ground, #f3f6fb);stroke-width:1;stroke-dasharray:3.000000,3.000000;"></rect></g><text x="70" y="407.5" class="text-bold" style="fill:var(--ink, #0c2350);text-anchor:middle;font-size:13px">Internet</text></g><g class="dGFpbG5ldA== zone"><g class="shape"><rect x="1354" y="12" width="108" height="60" style="stroke:var(--ink-muted, #455679);fill:var(--ground, #f3f6fb);stroke-width:1;stroke-dasharray:3.000000,3.000000;"></rect></g><text x="1408" y="47.5" class="text-bold" style="fill:var(--ink, #0c2350);text-anchor:middle;font-size:13px">Tailnet</text></g><g class="cGFnZXM="><g class="shape"><rect x="180" y="830" width="264" height="60" style="stroke:var(--ink, #0c2350);fill:var(--surface, #ffffff);stroke-width:1;"></rect></g><text x="312" y="865.5" class="text" style="fill:var(--ink, #0c2350);text-anchor:middle;font-size:13px">GitHub Pages · this site</text></g><g class="ZG9ja2VyLXBp host"><g class="shape"><rect x="148" y="142" width="891" height="290" style="stroke:var(--ink, #0c2350);fill:var(--ground, #f3f6fb);stroke-width:2;"></rect></g><rect class="kl-legend kl-legend-host" x="160" y="133.0" width="230.1" height="18" style="fill:var(--tape, #a8e4ff)"></rect><text x="275.0" y="146.3" class="text-bold" style="fill:var(--on-tape, #0c2350);text-anchor:middle;font-size:12px">docker-pi · Raspberry Pi 5</text></g><g class="cHJveG1veA== host"><g class="shape"><rect x="624" y="522" width="922" height="228" style="stroke:var(--ink, #0c2350);fill:var(--ground, #f3f6fb);stroke-width:2;"></rect></g><rect class="kl-legend kl-legend-host" x="636" y="513.0" width="137.8" height="18" style="fill:var(--tape, #a8e4ff)"></rect><text x="704.9" y="526.3" class="text-bold" style="fill:var(--on-tape, #0c2350);text-anchor:middle;font-size:12px">Proxmox cluster</text></g><g class="cGJz"><g class="shape"><rect x="879" y="960" width="324" height="60" style="stroke:var(--ink, #0c2350);fill:var(--surface, #ffffff);stroke-width:1;"></rect></g><text x="1041" y="995.5" class="text" style="fill:var(--ink, #0c2350);text-anchor:middle;font-size:13px">Proxmox Backup Server (own box)</text></g><g class="bGFu group"><g class="shape"><rect x="458" y="1054" width="642" height="160" style="stroke:var(--ink-muted, #455679);fill:var(--ground, #f3f6fb);stroke-width:1;stroke-dasharray:3.000000,3.000000;"></rect></g><rect class="kl-legend kl-legend-group" x="470" y="1045.0" width="137.8" height="18" style="fill:var(--ground, #f3f6fb)"></rect><text x="538.9" y="1058.3" class="text-bold" style="fill:var(--ink-muted, #455679);text-anchor:middle;font-size:12px">Also on the LAN</text></g><g class="ZG9ja2VyLXBpLnRyYWVmaWs="><g class="shape"><rect x="639" y="192" width="162" height="60" style="stroke:var(--ink, #0c2350);fill:var(--surface, #ffffff);stroke-width:1;"></rect></g><text x="720" y="227.5" class="text" style="fill:var(--ink, #0c2350);text-anchor:middle;font-size:13px">Traefik (LAN)</text></g><g class="ZG9ja2VyLXBpLmhvbWVwYWdl"><g class="shape"><rect x="661" y="322" width="117" height="60" style="stroke:var(--ink, #0c2350);fill:var(--surface, #ffffff);stroke-width:1;"></rect></g><text x="719.5" y="357.5" class="text" style="fill:var(--ink, #0c2350);text-anchor:middle;font-size:13px">homepage</text></g><g class="ZG9ja2VyLXBpLmdhdHVz"><g class="shape"><rect x="529" y="192" width="90" height="60" style="stroke:var(--ink, #0c2350);fill:var(--surface, #ffffff);stroke-width:1;"></rect></g><text x="574" y="227.5" class="text" style="fill:var(--ink, #0c2350);text-anchor:middle;font-size:13px">gatus</text></g><g class="ZG9ja2VyLXBpLmF0dmxvYWRseQ=="><g class="shape"><rect x="198" y="192" width="127" height="60" style="stroke:var(--ink, #0c2350);fill:var(--surface, #ffffff);stroke-width:1;"></rect></g><text x="261.5" y="227.5" class="text" style="fill:var(--ink, #0c2350);text-anchor:middle;font-size:13px">atvloadly</text></g><g class="ZG9ja2VyLXBpLnJ1bm5lcg=="><g class="shape"><rect x="469" y="322" width="172" height="60" style="stroke:var(--ink, #0c2350);fill:var(--surface, #ffffff);stroke-width:1;"></rect></g><text x="555" y="357.5" class="text" style="fill:var(--ink, #0c2350);text-anchor:middle;font-size:13px">Forgejo runner</text></g><g class="ZG9ja2VyLXBpLnBlcmlwaGVyeQ=="><g class="shape"><rect x="798" y="322" width="190" height="60" style="stroke:var(--ink, #0c2350);fill:var(--surface, #ffffff);stroke-width:1;"></rect></g><text x="893" y="357.5" class="text" style="fill:var(--ink, #0c2350);text-anchor:middle;font-size:13px">Komodo Periphery</text></g><g class="ZG9ja2VyLXBpLmFsbG95"><g class="shape"><rect x="345" y="192" width="164" height="60" style="stroke:var(--ink, #0c2350);fill:var(--surface, #ffffff);stroke-width:1;"></rect></g><text x="427" y="227.5" class="text" style="fill:var(--ink, #0c2350);text-anchor:middle;font-size:13px">Grafana Alloy</text></g><g class="cHJveG1veC5wdmU= node"><g class="shape"><rect x="939" y="572" width="340" height="128" style="stroke:var(--ink, #0c2350);fill:var(--surface, #ffffff);stroke-width:1;"></rect></g><rect class="kl-legend kl-legend-node" x="951" y="563.0" width="221.7" height="18" style="fill:var(--ground, #f3f6fb)"></rect><text x="1061.8" y="576.3" class="text-bold" style="fill:var(--ink, #0c2350);text-anchor:middle;font-size:12px">pve · mini PC, ZFS raidz1</text></g><g class="cHJveG1veC5wdmUy node"><g class="shape"><rect x="674" y="578" width="245" height="115" style="stroke:var(--ink, #0c2350);fill:var(--surface, #ffffff);stroke-width:1;"></rect></g><rect class="kl-legend kl-legend-node" x="686" y="569.0" width="45.6" height="18" style="fill:var(--ground, #f3f6fb)"></rect><text x="708.8" y="582.3" class="text-bold" style="fill:var(--ink, #0c2350);text-anchor:middle;font-size:12px">pve2</text></g><g class="cHJveG1veC5jb3Jl"><g class="shape"><rect x="1299" y="572" width="197" height="60" style="stroke:var(--ink, #0c2350);fill:var(--surface, #ffffff);stroke-width:1;"></rect></g><text x="1397.5" y="607.5" class="text" style="fill:var(--ink, #0c2350);text-anchor:middle;font-size:13px">Komodo Core (LXC)</text></g><g class="bGFuLmhh"><g class="shape"><rect x="508" y="1104" width="261" height="60" style="stroke:var(--ink, #0c2350);fill:var(--surface, #ffffff);stroke-width:1;"></rect></g><text x="638.5" y="1139.5" class="text" style="fill:var(--ink, #0c2350);text-anchor:middle;font-size:13px">Home Assistant OS (Pi 5)</text></g><g class="bGFuLnBpaG9sZQ=="><g class="shape"><rect x="789" y="1104" width="261" height="60" style="stroke:var(--ink, #0c2350);fill:var(--surface, #ffffff);stroke-width:1;"></rect></g><text x="919.5" y="1139.5" class="text" style="fill:var(--ink, #0c2350);text-anchor:middle;font-size:13px">Pi-hole (Pi 2B, LAN DNS)</text></g><g class="cHJveG1veC5wdmUuc2VydmljZXM= list"><g class="shape"></g><text x="1109" y="635" class="text" style="fill:var(--ink-muted, #455679);text-anchor:middle;font-size:13px"><tspan x="1109" dy="0">immich, jellyfin, frigate</tspan><tspan x="1109" dy="14">paperless, step-ca, fileserver</tspan></text></g><g class="cHJveG1veC5wdmUyLnNlcnZpY2Vz list"><g class="shape"></g><text x="796.5" y="641" class="text" style="fill:var(--ink-muted, #455679);text-anchor:middle;font-size:13px">Forgejo, Navidrome</text></g><g class="ZG9ja2VyLXBpLih0cmFlZmlrIC0mZ3Q7IGhvbWVwYWdlKVswXQ=="><marker id="mk-d2-3003092255-957925861" markerWidth="10" markerHeight="12" refX="7" refY="6" viewBox="0 0 10 12" orient="auto" markerUnits="userSpaceOnUse"> <polygon points="0,0 10,6 0,12" class="connection" stroke-width="2" style="fill:var(--accent, #086a9e);"></polygon> </marker><path d="M 720 253.5 L 720 318.5" fill="none" class="connection" style="stroke:var(--accent, #086a9e);stroke-width:2;" marker-end="url(#mk-d2-3003092255-957925861)" mask="url(#d2-3003092255)"></path></g><g class="KGludGVybmV0IC0mZ3Q7IHBhZ2VzKVswXQ=="><path d="M 70 433.5 L 70 780 S 70 790 80 790 L 258.75 790 S 268.75 790 268.75 800 L 268.75 826.5" fill="none" class="connection" style="stroke:var(--accent, #086a9e);stroke-width:2;" marker-end="url(#mk-d2-3003092255-957925861)" mask="url(#d2-3003092255)"></path><text x="70.5" y="735" class="text" style="fill:var(--ink-muted, #455679);text-anchor:middle;font-size:12px">kashlabs.com</text></g><g class="KGRvY2tlci1waS5ydW5uZXIgLSZndDsgcGFnZXMpWzBd"><path d="M 555.5 383.5 L 555.5 780 S 555.5 790 545.5 790 L 366.75 790 S 356.75 790 356.75 800 L 356.75 826.5" fill="none" class="connection" style="stroke:var(--accent, #086a9e);stroke-width:2;" marker-end="url(#mk-d2-3003092255-957925861)" mask="url(#d2-3003092255)"></path><text x="556" y="710" class="text" style="fill:var(--ink-muted, #455679);text-anchor:middle;font-size:12px">push gh-pages</text></g><g class="KHRhaWxuZXQgLSZndDsgcHJveG1veClbMF0= private"><path d="M 1408 73.5 L 1408 518" fill="none" class="connection" style="stroke:var(--accent, #086a9e);stroke-width:2;stroke-dasharray:8.000000,7.892511;" marker-end="url(#mk-d2-3003092255-957925861)" mask="url(#d2-3003092255)"></path><text x="1408.5" y="302" class="text" style="fill:var(--ink-muted, #455679);text-anchor:middle;font-size:12px">admin UIs, SSH</text></g><g class="KGRvY2tlci1waS5wZXJpcGhlcnkgLSZndDsgcHJveG1veC5jb3JlKVswXQ=="><path d="M 893.5 383.5 L 893.5 467 S 893.5 477 903.5 477 L 1388 477 S 1398 477 1398 487 L 1398 568.5" fill="none" class="connection" style="stroke:var(--accent, #086a9e);stroke-width:2;" marker-end="url(#mk-d2-3003092255-957925861)" mask="url(#d2-3003092255)"></path></g><g class="KHByb3htb3ggLSZndDsgcGJzKVswXQ=="><path d="M 1041.25 752 L 1041.25 956.5" fill="none" class="connection" style="stroke:var(--accent, #086a9e);stroke-width:2;" marker-end="url(#mk-d2-3003092255-957925861)" mask="url(#d2-3003092255)"></path><text x="1041" y="860" class="text" style="fill:var(--ink-muted, #455679);text-anchor:middle;font-size:12px">backups</text></g><mask id="d2-3003092255" maskUnits="userSpaceOnUse" x="-1" y="-1" width="1560" height="1228">
+<rect x="-1" y="-1" width="1560" height="1228" fill="white"></rect>
+<rect x="151" y="141" width="222" height="2" fill="black"></rect>
+<rect x="627" y="521" width="130" height="2" fill="black"></rect>
+<rect x="461" y="1053.5" width="129" height="1" fill="black"></rect>
+<rect x="942" y="571.5" width="214" height="1" fill="black"></rect>
+<rect x="677" y="577.5" width="38" height="1" fill="black"></rect>
+<rect x="24" y="723" width="93" height="14" fill="black"></rect>
+<rect x="505" y="698" width="102" height="14" fill="black"></rect>
+<rect x="1354" y="290" width="109" height="14" fill="black"></rect>
+<rect x="1013" y="848" width="56" height="14" fill="black"></rect>
+</mask></svg></svg>
+</div><figcaption><p class="kl-figure__caption" id="fig-01-caption"><span class="kl-figure__number">Fig <!-- -->01</span>How homeprod is put together</p><div class="kl-key"><span class="kl-label">Key</span><span class="kl-key__item"><svg viewBox="0 0 34 18" aria-hidden="true"><rect x="1" y="4" width="32" height="13" style="fill:var(--ground);stroke:var(--ink);stroke-width:var(--stroke-line)"></rect><rect x="5" y="1" width="14" height="6" style="fill:var(--tape)"></rect></svg>Host: a machine or cluster</span><span class="kl-key__item"><svg viewBox="0 0 34 18" aria-hidden="true"><rect x="1" y="4" width="32" height="13" style="fill:var(--surface);stroke:var(--ink);stroke-width:var(--stroke-hair)"></rect><rect x="5" y="2" width="12" height="4" style="fill:var(--ground)"></rect></svg>Machine inside a host</span><span class="kl-key__item"><svg viewBox="0 0 34 18" aria-hidden="true"><rect x="1" y="3" width="32" height="13" style="fill:none;stroke:var(--ink-muted);stroke-width:var(--stroke-hair);stroke-dasharray:3 3"></rect></svg>Zone or loose group</span><span class="kl-key__item"><svg viewBox="0 0 34 18" aria-hidden="true"><path d="M1 9 H27" style="fill:none;stroke:var(--accent);stroke-width:var(--stroke-symbol)"></path><path d="M26 5 L33 9 L26 13 Z" style="fill:var(--accent)"></path></svg>Connection</span><span class="kl-key__item"><svg viewBox="0 0 34 18" aria-hidden="true"><path d="M1 9 H27" style="fill:none;stroke:var(--accent);stroke-width:var(--stroke-symbol);stroke-dasharray:4 3"></path><path d="M26 5 L33 9 L26 13 Z" style="fill:var(--accent)"></path></svg>Private-network connection</span></div></figcaption></figure>
+<p>Two Proxmox nodes in one cluster, a Raspberry Pi 5 that does all the Docker
+work, a Pi 5 for Home Assistant <abbr>OS</abbr>, an ancient Pi 2B running Pi-hole, and a
+separate physical box for Proxmox Backup Server. The backup server is
+deliberately not part of the cluster — a backup that shares a failure domain
+with the thing it backs up is not a backup.</p>
+<h2 id="stateful-things-get-an-lxc-stateless-things-get-a-container">Stateful things get an LXC, stateless things get a container</h2>
+<p>The split I settled on is boring and has held up well.</p>
+<p>Anything with a large data directory — Immich, Jellyfin, Frigate, Paperless, the
+file server, Syncthing, the private <abbr>CA</abbr> — runs as its own <abbr>LXC</abbr> on the Proxmox node
+with the <abbr>ZFS</abbr> pool. Those containers are pets. They get snapshots, they get
+backed up by the cluster backup job, and I do not move them around.</p>
+<p>Anything that is just a process in front of some config — the reverse proxy,
+the dashboard, the uptime checks — runs as a Docker stack on a single Raspberry
+Pi 5. Those are cattle. Their entire definition is a compose
+file in git, so the Pi itself holds nothing I would miss.</p>
+<p>That second half is the part worth writing about, because it is where I made the
+biggest change this year.</p>
+<h2 id="git-is-the-control-plane">Git is the control plane</h2>
+<p>Docker on that Pi used to be managed through Portainer. It worked, but a good
+chunk of the setup existed only inside Portainer's database: stacks pasted into
+a textarea, environment variables typed into a form, edits made at 11pm and
+never written down. The compose files in my repo had quietly drifted into
+fiction.</p>
+<p>I replaced it with <a href="https://komo.do">Komodo</a>. The topology is a Core and
+Peripheries: Core runs as a Docker <abbr>LXC</abbr> on the Proxmox node, each Docker host
+runs a small Periphery agent that connects <em>outbound</em> to Core over the <abbr>LAN</abbr>. The
+agent dials out, so the host needs no inbound ports and no credentials stored on
+Core's side.</p>
+<p>What makes it stick is that the stacks are declared in the repo, not in the <abbr>UI</abbr>:</p>
+<figure class="kl-code kl-wide"><figcaption><span class="kl-tape">toml</span></figcaption><pre class="language-toml"><code class="language-toml"><span class="token punctuation">[</span><span class="token punctuation">[</span><span class="token table class-name">stack</span><span class="token punctuation">]</span><span class="token punctuation">]</span>
+<span class="token key property">name</span> <span class="token punctuation">=</span> <span class="token string">"traefik"</span>
+<span class="token punctuation">[</span><span class="token table class-name">stack.config</span><span class="token punctuation">]</span>
+<span class="token key property">server</span> <span class="token punctuation">=</span> <span class="token string">"docker-pi"</span>
+<span class="token key property">project_name</span> <span class="token punctuation">=</span> <span class="token string">"traefik"</span>
+<span class="token key property">git_provider</span> <span class="token punctuation">=</span> <span class="token string">"forgejo.internal"</span>
+<span class="token key property">repo</span> <span class="token punctuation">=</span> <span class="token string">"k/homelab"</span>
+<span class="token key property">branch</span> <span class="token punctuation">=</span> <span class="token string">"main"</span>
+<span class="token key property">run_directory</span> <span class="token punctuation">=</span> <span class="token string">"stacks/traefik"</span>
+<span class="token key property">file_paths</span> <span class="token punctuation">=</span> <span class="token punctuation">[</span><span class="token string">"compose.yaml"</span><span class="token punctuation">]</span>
+<span class="token key property">environment</span> <span class="token punctuation">=</span> <span class="token string">"""
+ACME_EMAIL=[[ACME_EMAIL]]
+CF_API_EMAIL=[[CF_API_EMAIL]]
+CF_DNS_API_TOKEN=[[CF_DNS_API_TOKEN]]
+"""</span>
+</code></pre></figure>
+<p>One <code>resources.toml</code> lists every stack, which host it belongs to, and where its
+compose file lives. Komodo reads it as a resource sync, so adding a service is a
+pull request, not a session with a <abbr>UI</abbr>. Secrets never enter the repo: <code>[[VAR]]</code>
+references a variable held by Komodo, which it expands into the stack's <code>.env</code>
+at deploy time.</p>
+<p>The loop closes with a webhook. I push to my self-hosted Forgejo, Forgejo posts
+to Komodo Core, Core tells the Periphery on the Pi to pull and redeploy that one
+stack. Editing a compose file and pushing it is the deploy.</p>
+<p>One snag worth knowing if you self-host Forgejo: its <code>ALLOWED_HOST_LIST</code> for
+webhooks defaults to <code>external</code>, which silently blocks private addresses. Every
+delivery to a <abbr>LAN</abbr>-hosted Komodo fails until you add the host.</p>
+<h2 id="the-edge">The edge</h2>
+<p>Traefik v3 terminates everything on the <abbr>LAN</abbr>. Port 80 redirects to 443, and
+services opt in with labels rather than config files. The router forwards no
+ports to it: it only ever answers inside the house.</p>
+<p>The certificate setup is the part that took the longest to get right, because
+the two kinds of name need two different challenges:</p>
+<div class="kl-table kl-wide"><table><thead><tr><th>Resolver</th><th>Challenge</th><th>Used for</th></tr></thead><tbody><tr><td><code>kopparamdnsresolver</code></td><td><abbr>DNS</abbr>-01 via Cloudflare</td><td>internal names that never face the internet</td></tr><tr><td><code>step</code></td><td><abbr>ACME</abbr> against my own step-ca</td><td><abbr>LAN</abbr>-only names, on a private <abbr>CA</abbr></td></tr></tbody></table></div>
+<p><abbr>DNS</abbr>-01 is what makes the first row possible: I get a real Let's Encrypt
+certificate for a hostname that resolves only inside the house, because the
+challenge is answered in <abbr>DNS</abbr> and never needs an inbound connection. The second
+row is a private <abbr>CA</abbr> running as its own <abbr>LXC</abbr>, issuing certificates over <abbr>ACME</abbr> just
+like Let's Encrypt does — the same Traefik config, a different directory <abbr>URL</abbr>.</p>
+<h2 id="nothing-at-home-is-on-the-internet">Nothing at home is on the internet</h2>
+<p>Until November this website was the exception. It ran as a container behind
+Traefik, which meant two port forwards on the router and two <code>ddclient</code>
+containers keeping A records pointed at my residential <abbr>IP</abbr>, one per registrar.
+Now it is a static site on GitHub Pages. The Forgejo runner on the Pi builds it
+on every push to <code>main</code> and pushes the result to a <code>gh-pages</code> branch over <abbr>SSH</abbr>,
+with a deploy key that can write to that one repository. The connection starts
+inside the house, so nothing has to come in, and there is no dynamic <abbr>DNS</abbr> left to
+keep alive.</p>
+<p>Every admin interface — Komodo, Proxmox, Forgejo, the dashboards — is reachable
+only over <a href="https://tailscale.com">Tailscale</a>.</p>
+<p>The trick I like most here is <code>tailscale serve</code>. Rather than putting Komodo's <abbr>UI</abbr>
+behind the reverse proxy and inventing an auth story for it, the <abbr>LXC</abbr> runs:</p>
+<figure class="kl-code kl-wide"><figcaption><span class="kl-tape">bash</span></figcaption><pre class="language-bash"><code class="language-bash">tailscale serve --bg <span class="token number">9120</span>
+</code></pre></figure>
+<p>That publishes the <abbr>UI</abbr> at an <abbr>HTTPS</abbr> <abbr>URL</abbr> with a valid tailnet certificate,
+reachable only by my devices. No port forward, no proxy rule, no extra login.
+Tailscale <abbr>SSH</abbr> covers shell access the same way, which means the Pi has password
+authentication disabled entirely and I do not manage <code>authorized_keys</code> by hand —
+with one <abbr>LAN</abbr> fallback key, because I have locked myself out of a machine by
+trusting an overlay network before.</p>
+<p>Pi-hole is <abbr>LAN</abbr> <abbr>DNS</abbr>, so the internal names resolve in the house and the ad
+blocking is free.</p>
+<h2 id="rebuilding-a-host-is-a-playbook">Rebuilding a host is a playbook</h2>
+<p>Earlier this month I reinstalled the Docker Pi from scratch — new <abbr>OS</abbr> release,
+new hostname, same hardware. The point of the exercise was to find out whether
+the rest of this was true.</p>
+<p>Host setup is one Ansible playbook: static <abbr>IP</abbr>, <abbr>SSH</abbr> hardening, Docker from the
+upstream repo, the shared Docker network, Grafana Alloy for logs and metrics,
+and the Komodo Periphery agent. Run it against a freshly flashed card and the
+host is ready to be handed stacks.</p>
+<p>Two things in it exist only because the rebuild taught me they were needed:</p>
+<figure class="kl-code kl-wide"><figcaption><span class="kl-tape">yaml</span></figcaption><pre class="language-yaml"><code class="language-yaml"><span class="token punctuation">-</span> <span class="token key atrule">name</span><span class="token punctuation">:</span>
+    Periphery waits for the network (it does not retry a failed first connect)
+  <span class="token key atrule">ansible.builtin.copy</span><span class="token punctuation">:</span>
+    <span class="token key atrule">dest</span><span class="token punctuation">:</span> /etc/systemd/system/periphery.service.d/10<span class="token punctuation">-</span>network<span class="token punctuation">-</span>online.conf
+    <span class="token key atrule">content</span><span class="token punctuation">:</span> <span class="token punctuation">|</span><span class="token scalar string">
+      [Unit]
+      Wants=network-online.target
+      After=network-online.target</span>
+
+<span class="token punctuation">-</span> <span class="token key atrule">name</span><span class="token punctuation">:</span> Periphery starts on boot (installer does not enable it)
+  <span class="token key atrule">ansible.builtin.systemd_service</span><span class="token punctuation">:</span>
+    <span class="token key atrule">name</span><span class="token punctuation">:</span> periphery
+    <span class="token key atrule">state</span><span class="token punctuation">:</span> started
+    <span class="token key atrule">enabled</span><span class="token punctuation">:</span> <span class="token boolean important">true</span>
+</code></pre></figure>
+<p>The agent does not retry its first connection, so on a cold boot it raced the
+network and lost, and the installer never enabled the unit. Both are the kind of
+detail you discover once and then encode, which is the whole argument for the
+playbook.</p>
+<h2 id="the-backup-is-the-part-you-test">The backup is the part you test</h2>
+<p>Before wiping the Pi I took a Proxmox Backup Server snapshot of the whole host
+and marked it protected so no retention job could eat it.</p>
+<p>Then I did the thing that matters: mounted the snapshot and compared checksums
+of the files I actually cared about — the Docker volumes, the Traefik
+<code>acme.json</code>, the config directories — against the live host. A backup job that
+exits 0 tells you a job ran. Reading the bytes back and finding them identical
+tells you that you have a backup.</p>
+<p>They matched, and the restore afterwards was uneventful. Certificates came back
+without being reissued, and the Apple <abbr>TV</abbr> pairing in an anonymous volume survived
+because I had gone looking for it beforehand.</p>
+<h2 id="what-i-would-tell-past-me">What I would tell past me</h2>
+<p><strong>State that lives in a <abbr>UI</abbr> does not exist.</strong> The single biggest improvement was
+moving stack definitions out of a management tool's database and into a git repo
+that the management tool reads. The tool became replaceable, which is exactly
+what you want from a tool.</p>
+<p><strong>Write the migration down before running it.</strong> My reinstall was a document with
+numbered phases, a check per service, and a rollback per step. It turned a scary
+evening into a checklist, and when something did go wrong I knew which step I
+was on.</p>
+<p><strong>Keep an explicit list of what is not in code.</strong> <abbr>DHCP</abbr> reservations, the <abbr>CA</abbr>'s
+provisioner, the Home Assistant configuration, the Komodo variables, the <abbr>DNS</abbr>
+records at two registrars, the deploy key GitHub holds. None of it is in the repo,
+so the repo documents where each one lives. That list is the real disaster
+recovery plan.</p>
+<p><strong>Delete the experiments.</strong> My repo had Kubernetes manifests for a cluster that
+no longer exists, Ceph notes for a thumb drive I pulled out a year ago, and
+compose files for four services I stopped running. Every one of them was a trap
+for future me, reading a file and assuming it described reality. Homeprod means
+the repo contains what runs, and nothing else — the experiments live in a tag if
+I ever want them back.</p>
+<p>The lab was more fun. This is better.</p>]]></content:encoded>
+            <author>me@kkoppa.com (Kashyap Kopparam)</author>
+        </item>
+        <item>
+            <title><![CDATA[How to replace a book disk in Proxmox]]></title>
+            <link>https://kashlabs.com/articles/proxmox-hot-swap-boot-disk/</link>
+            <guid>https://kashlabs.com/articles/proxmox-hot-swap-boot-disk/</guid>
+            <pubDate>Fri, 25 Jul 2025 00:00:00 GMT</pubDate>
+            <content:encoded><![CDATA[<p>A Proxmox <abbr>VE</abbr> node may be running 24 hours a day for years. This might lead to
+the boot disk wearing out and in need or replacement. This guide lets you swap
+the drive out for a new one without data loss.</p>
+<p>Note that this method works if you instlled Proxmox using <abbr>ZFS</abbr>.</p>
+<h2 id="setup">Setup</h2>
+<p>Get your new drive ready, and make sure it is the same size or larger than the
+old one. Plug in your drive into an empty bay in the Proxmox machine, or attach
+it with an enclosure using <abbr>USB</abbr>. The idea is to have both drives available to
+Proxmox.</p>
+<p>Let's assume</p>
+<p>Old drive: <code>/dev/sda</code> New drive: <code>/dev/sdb</code></p>
+<h2 id="step-1-prepare-partitions-on-the-new-drive">Step 1: Prepare partitions on the new drive</h2>
+<p>The easy way to do this is to copy over the partitions using <code>sfdisk</code></p>
+<figure class="kl-code kl-wide"><figcaption><span class="kl-tape">bash</span></figcaption><pre class="language-bash"><code class="language-bash">sfdisk -d /dev/sda <span class="token operator">&gt;</span> pve-boot-partitions.txt
+</code></pre></figure>
+<figure class="kl-code kl-wide"><figcaption><span class="kl-tape">bash</span></figcaption><pre class="language-bash"><code class="language-bash"><span class="token function">cat</span> pve-boot-partitions.txt
+
+label: gpt
+label-id: FDB673E1-0941-43AB-BB02-B8A6C3D0D0F8
+device: /dev/sda
+unit: sectors
+first-lba: <span class="token number">34</span>
+last-lba: <span class="token number">122142686</span>
+sector-size: <span class="token number">512</span>
+
+/dev/sad1 <span class="token builtin class-name">:</span> <span class="token assign-left variable">start</span><span class="token operator">=</span>          <span class="token number">34</span>, <span class="token assign-left variable">size</span><span class="token operator">=</span>        <span class="token number">2014</span>, <span class="token assign-left variable">type</span><span class="token operator">=</span><span class="token number">21686148</span>-6449-6E6F-744E-656564454649, <span class="token assign-left variable">uuid</span><span class="token operator">=</span>4CC31FA5-A6FC-42DB-9071-DF76FBA08F60
+/dev/sad2 <span class="token builtin class-name">:</span> <span class="token assign-left variable">start</span><span class="token operator">=</span>        <span class="token number">2048</span>, <span class="token assign-left variable">size</span><span class="token operator">=</span>     <span class="token number">1048576</span>, <span class="token assign-left variable">type</span><span class="token operator">=</span>C12A7328-F81F-11D2-BA4B-00A0C93EC93B, <span class="token assign-left variable">uuid</span><span class="token operator">=</span>B0560706-84DB-45B1-AF0D-BB32DD7F4476
+/dev/sda3 <span class="token builtin class-name">:</span> <span class="token assign-left variable">start</span><span class="token operator">=</span>     <span class="token number">1050624</span>, <span class="token assign-left variable">size</span><span class="token operator">=</span>   <span class="token number">121085953</span>, <span class="token assign-left variable">type</span><span class="token operator">=</span>6A898CC3-1DD2-11B2-99A6-080020736631, <span class="token assign-left variable">uuid</span><span class="token operator">=</span>D8BA81D1-0C84-49A8-99B6-F32C041A2FF3
+</code></pre></figure>
+<p>This is also the input to <code>sfdisk</code>. By modifying the following in this file, it
+can be used to create partitions on the new drive.</p>
+<ol>
+<li>Remove last-blk line. This is tell <code>sfdisk</code> to use the entire disk.</li>
+<li>Remove UUIDs for all partition. This will let <code>sfdisk</code> generate new UUIDs for
+the new drive.</li>
+<li>Replace size with <code>-</code> for the last partition. This will let <code>sfdisk</code> use the
+remaining space on the disk for the last partition.</li>
+</ol>
+<p>It should look like this:</p>
+<figure class="kl-code kl-wide"><figcaption><span class="kl-tape">bash</span></figcaption><pre class="language-bash"><code class="language-bash"><span class="token comment"># cat pve-boot-partitions.txt</span>
+
+label: gpt
+label-id: FDB673E1-0941-43AB-BB02-B8A6C3D0D0F8
+device: /dev/sda
+unit: sectors
+first-lba: <span class="token number">34</span>
+sector-size: <span class="token number">512</span>
+
+/dev/sad1 <span class="token builtin class-name">:</span> <span class="token assign-left variable">start</span><span class="token operator">=</span>          <span class="token number">34</span>, <span class="token assign-left variable">size</span><span class="token operator">=</span>        <span class="token number">2014</span>, <span class="token assign-left variable">type</span><span class="token operator">=</span><span class="token number">21686148</span>-6449-6E6F-744E-656564454649
+/dev/sad2 <span class="token builtin class-name">:</span> <span class="token assign-left variable">start</span><span class="token operator">=</span>        <span class="token number">2048</span>, <span class="token assign-left variable">size</span><span class="token operator">=</span>     <span class="token number">1048576</span>, <span class="token assign-left variable">type</span><span class="token operator">=</span>C12A7328-F81F-11D2-BA4B-00A0C93EC93B
+/dev/sda3 <span class="token builtin class-name">:</span> <span class="token assign-left variable">start</span><span class="token operator">=</span>     <span class="token number">1050624</span>, <span class="token assign-left variable">size</span><span class="token operator">=</span>   -, <span class="token assign-left variable">type</span><span class="token operator">=</span>6A898CC3-1DD2-11B2-99A6-080020736631
+</code></pre></figure>
+<p>Use this file to create the partitions on the new drive:</p>
+<figure class="kl-code kl-wide"><figcaption><span class="kl-tape">bash</span></figcaption><pre class="language-bash"><code class="language-bash"><span class="token comment"># sfdisk /dev/sdb &lt; pve-boot-partitions.txt</span>
+</code></pre></figure>
+<p>Check that the partitions are created correctly:</p>
+<figure class="kl-code kl-wide"><figcaption><span class="kl-tape">bash</span></figcaption><pre class="language-bash"><code class="language-bash"><span class="token comment"># lsblk /dev/sda /dev/sdb</span>
+</code></pre></figure>
+<p>Learn more about the partitions in Proxmox in the
+<a href="https://pve.proxmox.com/pve-docs/pve-admin-guide.html#sysboot_installer_part_scheme">Proxmox documentation</a>.</p>
+<h2 id="step-2-copy-the-partitions">Step 2: Copy the partitions</h2>
+<p>Now that the partitions are created, we can copy the data.</p>
+<p>First up is the <abbr>BIOS</abbr> boot partition.</p>
+<figure class="kl-code kl-wide"><figcaption><span class="kl-tape">bash</span></figcaption><pre class="language-bash"><code class="language-bash"><span class="token comment"># dd if=/dev/sda1 of=/dev/sdb1</span>
+</code></pre></figure>
+<p>Next, the <abbr>EFI</abbr> system partition.</p>
+<p>Create the filesystem on the new drive, by simply copying over from the old
+drive</p>
+<figure class="kl-code kl-wide"><figcaption><span class="kl-tape">bash</span></figcaption><pre class="language-bash"><code class="language-bash"><span class="token comment"># dd if=/dev/sda2 of=/dev/sdb2</span>
+</code></pre></figure>
+<p>Check if you are using <abbr>EFI</abbr> or Grub bootloader</p>
+<figure class="kl-code kl-wide"><figcaption><span class="kl-tape">bash</span></figcaption><pre class="language-bash"><code class="language-bash"><span class="token comment"># proxmox-boot-tool status</span>
+</code></pre></figure>
+<p>If you are using <abbr>EFI</abbr>, you can skip the grub at the end of the command.</p>
+<figure class="kl-code kl-wide"><figcaption><span class="kl-tape">bash</span></figcaption><pre class="language-bash"><code class="language-bash">proxmox-boot-tool init /dev/sdb2 <span class="token punctuation">[</span>grub<span class="token punctuation">]</span>
+</code></pre></figure>
+<h2 id="step-3-create-a-mirrored-zfs-pool">Step 3: Create a mirrored ZFS pool</h2>
+<p>The idea is to create a mirrored <abbr>ZFS</abbr> pool with the two drives and detach the old
+drive.</p>
+<figure class="kl-code kl-wide"><figcaption><span class="kl-tape">bash</span></figcaption><pre class="language-bash"><code class="language-bash"><span class="token comment"># zpool replace -f rpool /dev/sda3 /dev/sdb3</span>
+</code></pre></figure>
+<p>This will start the resilvering process, which will copy the data from the old
+drive to the new drive. You can check the status of the resilvering process
+with:</p>
+<figure class="kl-code kl-wide"><figcaption><span class="kl-tape">bash</span></figcaption><pre class="language-bash"><code class="language-bash"><span class="token comment"># zpool status rpool</span>
+</code></pre></figure>
+<p>Once the resilvering is complete, you can boot from the new drive.</p>
+<h2 id="conculsion">Conculsion</h2>
+<p>Always use <abbr>ZFS</abbr> during installation of Proxmox. By using <abbr>ZFS</abbr>, you can easily
+replace drives without data loss.</p>
+<h2 id="references">References</h2>
+<ul>
+<li><a href="https://pve.proxmox.com/wiki/ZFS_on_Linux">Proxmox <abbr>VE</abbr>—<abbr>ZFS</abbr> on Linux</a></li>
+<li><a href="https://openzfs.github.io/openzfs-docs/man/master/8/zpool-replace.8.html"><abbr>ZFS</abbr>—zpool replace</a></li>
+</ul>]]></content:encoded>
+            <author>me@kkoppa.com (Kashyap Kopparam)</author>
+        </item>
+        <item>
+            <title><![CDATA[Code reviews: Thinking of the other side is key]]></title>
+            <link>https://kashlabs.com/articles/code-review-tips/</link>
+            <guid>https://kashlabs.com/articles/code-review-tips/</guid>
+            <pubDate>Mon, 08 May 2023 00:00:00 GMT</pubDate>
+            <content:encoded><![CDATA[<p>When doing code reviews, it is critical to think of the other side of the
+review. This article shows some tips on how that can be achieved with a simple
+guideline.</p>
+<p>Typically, you are going to submit code and review code.</p>
+<h2 id="as-a-reviewer">As a reviewer</h2>
+<h3>Categorised comments</h3>
+<p>Categorize the comments based on their importance. This will help the author to
+prioritize the comments and take action accordingly.</p>
+<h4>Question</h4>
+<p>A Question might not be actionable in terms of updating the code.</p>
+<p>But it is important to get the author's attention, so that you as a reviewer and
+peers who might look at the pull request understand better.</p>
+<h4>Suggestion</h4>
+<p>A Suggestion also might not be actionable in terms of updating the code. It
+could be something that is stylistic or something that is not a blocker for the
+pull request to be merged.</p>
+<p>However, it is important to overcommunicate why a suggesion is made, along with
+an example. Eg, this if condition could be more readable if it is extracted to a
+variable/function.</p>
+<h4>Action required</h4>
+<p>These comments require action before the pull request can be merged. It could be
+a bug, a security issue, or a performance issue which might impact user
+experience or other key metrics of the application.</p>
+<p>Again, explaining how the issue might impact users or the application is
+important.</p>
+<h4>Blocking approval</h4>
+<p>These comments are blockers for the pull request to be merged. For example, then
+the pull request does not have tests, or the code written is a duplicate and the
+author can reuse an existing function/library to do the same.</p>
+<p>Another case, is when the code becomes irrelevant due to changing requirements.</p>
+<h4>Require offline communication</h4>
+<p>This is a special case where the reviewer, the author, and maybe more team
+members need to have a discussion offline to come to a consensus.</p>
+<p>This could be a design decision, or a decision to refactor a large part of the
+codebase. In other cases, it could be a complex feature that needs to be broken
+down into smaller pieces or to discuss some missing pieces only discovered after
+writing the code.</p>
+<h3>Ensure to approve or reject the pull request</h3>
+<p>Do not leave the pull request hanging. As long as there is no blocking approval
+or require offline communication comment, the pull request should be approved.
+We trust that the author to make the changes required, and reply to relevant
+comments before they merge the code.</p>
+<p>If we fail to approve or reject the pull request, the author will be slowed down
+and in turn the team's performance is impacted.</p>
+<h2 id="as-an-author">As an author</h2>
+<p>Work in progress</p>]]></content:encoded>
+            <author>me@kkoppa.com (Kashyap Kopparam)</author>
+        </item>
+        <item>
+            <title><![CDATA[Using WebClient with mTLS in Spring Boot]]></title>
+            <link>https://kashlabs.com/articles/spring-boot-web-client-mtls/</link>
+            <guid>https://kashlabs.com/articles/spring-boot-web-client-mtls/</guid>
+            <pubDate>Wed, 26 Apr 2023 00:00:00 GMT</pubDate>
+            <content:encoded><![CDATA[<p>Going through the documentation of WebClient, Spring Boot and openssl can be
+overwhelming. This article is a step-by-step guide to using WebClient with mTLS
+in Spring Boot.</p>
+<p>We will use openssl to create a keystore in <abbr>PKCS12</abbr> format from certificate and
+key files in pem format, and use this to configure WebClient to use mTLS.</p>
+<h2 id="setup">Setup</h2>
+<p>Obtain the client certificate and key, this will usually be in pem format.</p>
+<p>Now we can convert this into a <abbr>PKCS12</abbr> keystore. This keystore can hold multiple
+certificates and keys, identified by an alias/friedly name. The whole keystore
+is password protected, and each key entry may also be optionally password
+protected.</p>
+<figure class="kl-code kl-wide"><figcaption><span class="kl-tape">bash</span></figcaption><pre class="language-bash"><code class="language-bash">openssl pkcs12 -in client_cert.pem -inkey client_key.pem -export -out client.p12 -name my-client
+</code></pre></figure>
+<h2 id="configure-webclient">Configure WebClient</h2>
+<figure class="kl-code kl-wide"><figcaption><span class="kl-tape">kotlin</span></figcaption><pre class="language-kotlin"><code class="language-kotlin"><span class="token keyword">val</span> keyStore <span class="token operator">=</span> KeyStore<span class="token punctuation">.</span><span class="token function">getInstance</span><span class="token punctuation">(</span><span class="token string-literal singleline"><span class="token string">"PKCS12"</span></span><span class="token punctuation">)</span>
+
+<span class="token comment">// read a file as inputStream from path /etc/ssl/certs/client.p12</span>
+<span class="token function">File</span><span class="token punctuation">(</span><span class="token string-literal singleline"><span class="token string">"/etc/ssl/certs/client.p12"</span></span><span class="token punctuation">)</span><span class="token punctuation">.</span><span class="token function">inputStream</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">.</span><span class="token function">use</span> <span class="token punctuation">{</span> inputStream <span class="token operator">-&gt;</span>
+    keyStore<span class="token punctuation">.</span><span class="token function">load</span><span class="token punctuation">(</span>inputStream<span class="token punctuation">,</span> <span class="token string-literal singleline"><span class="token string">"password"</span></span><span class="token punctuation">.</span><span class="token function">toCharArray</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">)</span>
+<span class="token punctuation">}</span>
+
+<span class="token comment">// read the client certificate and key from the keystore using `my-client` alias</span>
+<span class="token keyword">val</span> clientCrt<span class="token operator">:</span> X509Certificate <span class="token operator">=</span> keyStore<span class="token punctuation">.</span><span class="token function">getCertificate</span><span class="token punctuation">(</span><span class="token string-literal singleline"><span class="token string">"my-client"</span></span><span class="token punctuation">)</span> <span class="token keyword">as</span> X509Certificate
+<span class="token keyword">val</span> keyStoreEntry <span class="token operator">=</span> keyStore<span class="token punctuation">.</span><span class="token function">getEntry</span><span class="token punctuation">(</span>
+    <span class="token string-literal singleline"><span class="token string">"my-client"</span></span><span class="token punctuation">,</span>
+    KeyStore<span class="token punctuation">.</span><span class="token function">PasswordProtection</span><span class="token punctuation">(</span><span class="token string-literal singleline"><span class="token string">"password"</span></span><span class="token punctuation">.</span><span class="token function">toCharArray</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">)</span>
+<span class="token punctuation">)</span>
+<span class="token keyword">val</span> clientKey <span class="token operator">=</span> <span class="token punctuation">(</span>keyStoreEntry <span class="token keyword">as</span> KeyStore<span class="token punctuation">.</span>PrivateKeyEntry<span class="token punctuation">)</span><span class="token punctuation">.</span>privateKey
+
+
+<span class="token keyword">val</span> httpClient<span class="token operator">:</span> HttpClient <span class="token operator">=</span>
+    HttpClient<span class="token punctuation">.</span><span class="token function">create</span><span class="token punctuation">(</span><span class="token punctuation">)</span>
+        <span class="token punctuation">.</span><span class="token function">wiretap</span><span class="token punctuation">(</span><span class="token string-literal singleline"><span class="token string">"reactor.netty.http.client.HttpClient"</span></span><span class="token punctuation">,</span> LogLevel<span class="token punctuation">.</span>DEBUG<span class="token punctuation">,</span> AdvancedByteBufFormat<span class="token punctuation">.</span>TEXTUAL<span class="token punctuation">)</span>
+        <span class="token punctuation">.</span><span class="token function">secure</span> <span class="token punctuation">{</span> builder <span class="token operator">-&gt;</span>
+            <span class="token comment">// Use this even though it is deprecated so that the TLS version can be negotiated and changed during runtime</span>
+            builder<span class="token punctuation">.</span><span class="token function">sslContext</span><span class="token punctuation">(</span>
+                SslContextBuilder<span class="token punctuation">.</span><span class="token function">forClient</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">.</span><span class="token function">clientAuth</span><span class="token punctuation">(</span>ClientAuth<span class="token punctuation">.</span>REQUIRE<span class="token punctuation">)</span><span class="token punctuation">.</span><span class="token function">keyManager</span><span class="token punctuation">(</span>clientKey<span class="token punctuation">,</span> clientCrt<span class="token punctuation">)</span>
+            <span class="token punctuation">)</span>
+        <span class="token punctuation">}</span>
+<span class="token keyword">val</span> httpConnector<span class="token operator">:</span> ClientHttpConnector <span class="token operator">=</span> <span class="token function">ReactorClientHttpConnector</span><span class="token punctuation">(</span>httpClient<span class="token punctuation">)</span>
+
+
+<span class="token keyword">return</span> WebClient<span class="token punctuation">.</span><span class="token function">builder</span><span class="token punctuation">(</span><span class="token punctuation">)</span>
+    <span class="token punctuation">.</span><span class="token function">clientConnector</span><span class="token punctuation">(</span>httpConnector<span class="token punctuation">)</span>
+    <span class="token punctuation">.</span><span class="token function">baseUrl</span><span class="token punctuation">(</span><span class="token string-literal singleline"><span class="token string">"https://mtls-secured-server.com"</span></span><span class="token punctuation">)</span>
+    <span class="token punctuation">.</span><span class="token function">build</span><span class="token punctuation">(</span><span class="token punctuation">)</span>
+
+</code></pre></figure>]]></content:encoded>
+            <author>me@kkoppa.com (Kashyap Kopparam)</author>
+        </item>
+    </channel>
+</rss>
