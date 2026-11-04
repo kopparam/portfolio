@@ -1,28 +1,22 @@
-# Spotlight
+# kashlabs.com
 
-Spotlight is a [Tailwind UI](https://tailwindui.com) site template built using [Tailwind CSS](https://tailwindcss.com) and [Next.js](https://nextjs.org).
+The source of [kashlabs.com](https://kashlabs.com), Kashyap Kopparam's personal site. It is a Next.js 14 site, built as a static export and styled by the Kashlabs design system.
 
-## Getting started
+This repository lives on a private Forgejo. `kopparam/portfolio` on GitHub is a mirror of its `main` (see Deploying), so changes made on GitHub are overwritten.
 
-To get started with this template, first install the npm dependencies:
+## Running it
 
-```bash
-npm install
-```
-
-Next, create a `.env.local` file in the root of your project and set the `NEXT_PUBLIC_SITE_URL` variable to your site's public URL:
-
-```
-NEXT_PUBLIC_SITE_URL=https://example.com
-```
-
-Next, run the development server:
+Install the dependencies with [Bun](https://bun.sh) 1.4:
 
 ```bash
-npm run dev
+bun install
 ```
 
-Finally, open [http://localhost:3000](http://localhost:3000) in your browser to view the website.
+- `bun run dev` serves the site at http://localhost:3000 and reloads on changes.
+- `bun run build` writes the static site to `out/`, and `bun run start` serves that at http://localhost:3000.
+- `bun run lint` and `bun run test` run ESLint and the Bun tests, as CI does on every pull request.
+
+`NEXT_PUBLIC_SITE_URL` in `.env` is the public address the build uses for absolute links: the feed, the share card and the icons. Override it in `.env.local` if you need to.
 
 ## Design system
 
@@ -48,17 +42,10 @@ When you add or change a diagram, or sync a design system with a new D2 theme, i
 
 Pushing to `main` runs `.forgejo/workflows/build-deploy.yaml` on the Forgejo runner. It builds the site as a static export in `out/` and force-pushes that to the `gh-pages` branch of `kopparam/portfolio` on GitHub, which GitHub Pages serves at the address in `.env` (`NEXT_PUBLIC_SITE_URL`). The push uses a deploy key with write access to that repository, stored as the Forgejo Actions secret `GH_PAGES_DEPLOY_KEY`.
 
+The same push runs `.forgejo/workflows/mirror-github.yaml`, which force-pushes `main` to `main` on `kopparam/portfolio` with that deploy key, so GitHub's `main` is a public copy of this repository's `main` and anything committed there directly is overwritten.
+
 There is no image server in a static export, so `bun run build` also writes each JPEG and PNG at the widths in `src/lib/image-sizes.mjs` (`scripts/export-images.mjs`) and builds `feed.xml` from the exported articles (`scripts/build-feed.mjs`). `bun run start` serves `out/` locally.
 
 ## License
 
-This site template is a commercial product and is licensed under the [Tailwind UI license](https://tailwindui.com/license).
-
-## Learn more
-
-To learn more about the technologies used in this site template, see the following resources:
-
-- [Tailwind CSS](https://tailwindcss.com/docs) - the official Tailwind CSS documentation
-- [Next.js](https://nextjs.org/docs) - the official Next.js documentation
-- [Headless UI](https://headlessui.dev) - the official Headless UI documentation
-- [MDX](https://mdxjs.com) - the MDX documentation
+The site started from Spotlight, a [Tailwind UI](https://tailwindui.com) template. The code that remains from it is covered by the [Tailwind UI license](LICENSE.md).

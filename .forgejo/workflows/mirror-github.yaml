@@ -1,0 +1,67 @@
+name: Mirror to GitHub
+
+# Keeps main on kopparam/portfolio on GitHub a copy of main here, by
+# force-pushing it there after every push. Only main is pushed: gh-pages
+# belongs to the deploy workflow, and other branches and tags stay here.
+# Forgejo's own push mirror is no use for this: it runs git push --mirror,
+# which deletes every other branch on GitHub, gh-pages included, even with
+# its branch filter set to main. The push uses the deploy workflow's deploy
+# key (GH_PAGES_DEPLOY_KEY), which can write to any branch of that
+# repository.
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  mirror:
+    runs-on: docker
+    steps:
+      # checkout only makes a git repository when git is installed; without
+      # it, it downloads the files alone and there is nothing to push.
+      - name: Install git and ssh
+        run: |
+          if ! command -v git >/dev/null || ! command -v ssh >/dev/null; then
+            apt-get update
+            apt-get install -y --no-install-recommends git openssh-client
+          fi
+
+      # All of the history, not just the one commit checkout fetches by
+      # default: GitHub refuses a push from a shallow clone.
+      - name: Check out
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # --force, so GitHub follows main here even if its history is
+      # rewritten. The host key is GitHub's published one
+      # (api.github.com/meta), so the key is never offered to anyone else.
+      - name: Push main to GitHub
+        env:
+          DEPLOY_KEY: ${{ secrets.GH_PAGES_DEPLOY_KEY }}
+        run: |
+          if [ -z "$DEPLOY_KEY" ]; then
+            echo "the GH_PAGES_DEPLOY_KEY secret is not set" >&2
+            exit 1
+          fi
+
+          # Runs can finish out of order. If main has moved on since this
+          # run started, leave the push to the run for the newer commit, so
+          # GitHub never goes back to an older one.
+          git fetch --quiet origin main
+          latest=$(git rev-parse FETCH_HEAD)
+          if [ "$latest" != "$GITHUB_SHA" ]; then
+            echo "main is now at ${latest:0:7}; the run for that commit pushes it"
+            exit 0
+          fi
+
+          ssh_dir=$(mktemp -d)
+          trap 'rm -rf "$ssh_dir"' EXIT
+          printf '%s\n' "$DEPLOY_KEY" > "$ssh_dir/key"
+          chmod 600 "$ssh_dir/key"
+          echo 'github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl' \
+            > "$ssh_dir/known_hosts"
+          export GIT_SSH_COMMAND="ssh -i $ssh_dir/key -o IdentitiesOnly=yes -o UserKnownHostsFile=$ssh_dir/known_hosts -o StrictHostKeyChecking=yes"
+
+          git push --force git@github.com:kopparam/portfolio.git HEAD:refs/heads/main
